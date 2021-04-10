@@ -135,13 +135,13 @@ public class GeyserSession implements CommandSender {
 
     private final SessionPlayerEntity playerEntity;
 
-    private AdvancementsCache advancementsCache;
-    private BookEditCache bookEditCache;
-    private ChunkCache chunkCache;
-    private EntityCache entityCache;
-    private EntityEffectCache effectCache;
-    private WorldCache worldCache;
-    private WindowCache windowCache;
+    private final AdvancementsCache advancementsCache;
+    private final BookEditCache bookEditCache;
+    private final ChunkCache chunkCache;
+    private final EntityCache entityCache;
+    private final EntityEffectCache effectCache;
+    private final WorldCache worldCache;
+    private final WindowCache windowCache;
     private final Int2ObjectMap<TeleportCache> teleportMap = new Int2ObjectOpenHashMap<>();
 
     private final PlayerInventory playerInventory;
@@ -433,8 +433,6 @@ public class GeyserSession implements CommandSender {
         this.collisionManager = new CollisionManager(this);
 
         this.playerEntity = new SessionPlayerEntity(this);
-        this.worldCache = new WorldCache(this);
-        this.windowCache = new WindowCache(this);
 
         this.playerInventory = new PlayerInventory();
         this.openInventory = null;
@@ -791,14 +789,6 @@ public class GeyserSession implements CommandSender {
         if (tickThread != null) {
             tickThread.cancel(true);
         }
-
-        this.advancementsCache = null;
-        this.bookEditCache = null;
-        this.chunkCache = null;
-        this.entityCache = null;
-        this.effectCache = null;
-        this.worldCache = null;
-        this.windowCache = null;
 
         closed = true;
     }
