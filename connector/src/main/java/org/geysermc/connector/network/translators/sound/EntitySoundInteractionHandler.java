@@ -1,27 +1,26 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in
- *  all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- *  THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  *
- *  @author GeyserMC
- *  @link https://github.com/GeyserMC/Geyser
- *
+ * @author GeyserMC
+ * @link https://github.com/GeyserMC/Geyser
  */
 
 package org.geysermc.connector.network.translators.sound;
@@ -29,6 +28,7 @@ package org.geysermc.connector.network.translators.sound;
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.ItemStack;
 import com.nukkitx.math.vector.Vector3f;
 import org.geysermc.connector.entity.Entity;
+import org.geysermc.connector.inventory.GeyserItemStack;
 import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.item.ItemRegistry;
 
@@ -62,12 +62,12 @@ public interface EntitySoundInteractionHandler extends SoundInteractionHandler<E
                 }
                 if (!contains) continue;
             }
-            ItemStack itemInHand = session.getInventory().getItemInHand();
+            GeyserItemStack itemInHand = session.getPlayerInventory().getItemInHand();
             if (interactionEntry.getKey().items().length != 0) {
-                if (itemInHand == null || itemInHand.getId() == 0) {
+                if (itemInHand.isEmpty()) {
                     continue;
                 }
-                String handIdentifier = ItemRegistry.getItem(session.getInventory().getItemInHand()).getJavaIdentifier();
+                String handIdentifier = itemInHand.getItemEntry().getJavaIdentifier();
                 boolean contains = false;
                 for (String itemIdentifier : interactionEntry.getKey().items()) {
                     if (handIdentifier.contains(itemIdentifier)) {
@@ -78,7 +78,7 @@ public interface EntitySoundInteractionHandler extends SoundInteractionHandler<E
                 if (!contains) continue;
             }
             if (session.isSneaking() && !interactionEntry.getKey().ignoreSneakingWhileHolding()) {
-                if (session.getInventory().getItemInHand() != null && session.getInventory().getItemInHand().getId() != 0) {
+                if (!itemInHand.isEmpty()) {
                     continue;
                 }
             }

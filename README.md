@@ -1,11 +1,12 @@
-<img src="https://geysermc.org/img/geyserlogo.png" alt="Geyser" width="600"/>
+<img src="https://geysermc.org/img/geyser-1760-860.png" alt="Geyser" width="600"/>
 
-[![forthebadge made-with-java](http://ForTheBadge.com/images/badges/made-with-java.svg)](https://java.com/)
+[![forthebadge made-with-java](https://ForTheBadge.com/images/badges/made-with-java.svg)](https://java.com/)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Build Status](https://ci.nukkitx.com/job/Geyser/job/master/badge/icon)](https://ci.nukkitx.com/job/Geyser/job/master/)
-[![Discord](https://img.shields.io/discord/613163671870242838.svg?color=%237289da&label=discord)](http://discord.geysermc.org/)
-[![HitCount](http://hits.dwyl.io/Geyser/GeyserMC.svg)](http://hits.dwyl.io/Geyser/GeyserMC)
+[![Build Status](https://ci.opencollab.dev/job/Geyser/job/master/badge/icon)](https://ci.opencollab.dev/job/GeyserMC/job/Geyser/job/master/)
+[![Discord](https://img.shields.io/discord/613163671870242838.svg?color=%237289da&label=discord)](https://discord.gg/geysermc/)
+[![HitCount](http://hits.dwyl.com/Geyser/GeyserMC.svg)](http://hits.dwyl.com/Geyser/GeyserMC)
+[![Crowdin](https://badges.crowdin.net/geyser/localized.svg)](https://translate.geysermc.org/)
 
 Geyser is a bridge between Minecraft: Bedrock Edition and Minecraft: Java Edition, closing the gap from those wanting to play true cross-platform.
 
@@ -15,9 +16,9 @@ Geyser is an open collaboration project by [CubeCraft Games](https://cubecraft.n
 Geyser is a proxy, bridging the gap between Minecraft: Bedrock Edition and Minecraft: Java Edition servers.
 The ultimate goal of this project is to allow Minecraft: Bedrock Edition users to join Minecraft: Java Edition servers as seamlessly as possible. **Please note, this project is still a work in progress and should not be used on production. Expect bugs!**
 
-Special thanks to the DragonProxy project for being a trailblazer in protocol translation and for all the team members who have now joined us here!
+Special thanks to the DragonProxy project for being a trailblazer in protocol translation and for all the team members who have joined us here!
 
-### Currently supporting Minecraft Bedrock v1.14.6(0) and Minecraft Java v1.15.2.
+### Currently supporting Minecraft Bedrock v1.16.100 - v1.16.220 and Minecraft Java v1.16.4 - v1.16.5.
 
 ## Setting Up
 Take a look [here](https://github.com/GeyserMC/Geyser/wiki#Setup) for how to set up Geyser.
@@ -27,23 +28,29 @@ Take a look [here](https://github.com/GeyserMC/Geyser/wiki#Setup) for how to set
 ## Links:
 - Website: https://geysermc.org
 - Docs: https://github.com/GeyserMC/Geyser/wiki
-- Download: http://ci.geysermc.org
-- Discord: http://discord.geysermc.org/
-- Donate: https://patreon.com/GeyserMC
+- Download: https://ci.geysermc.org
+- Discord: https://discord.gg/geysermc
+- ~~Donate: https://patreon.com/GeyserMC~~ Currently disabled.
+- Test Server: `test.geysermc.org` port `25565` for Java and `19132` for Bedrock
 
 ## What's Left to be Added/Fixed
-- The Following Inventories 
-  - [ ] Enchantment Table
-  - [ ] Beacon
-  - [ ] Cartography Table
-  - [ ] Stonecutter
-  - [ ] Villager Trading
+- Near-perfect movement (to the point where anticheat on large servers is unlikely to ban you)
+- Resource pack conversion/CustomModelData
 - Some Entity Flags
+- Structure block UI
+
+## What can't be fixed
+The following things cannot be fixed without changes to Bedrock. As of now, they are not fixable in Geyser.
+
+- Custom heads in inventories
+- Clickable links in chat
+- Glowing effect
+- Custom armor stand poses
 
 ## Compiling
 1. Clone the repo to your computer
 2. [Install Maven](https://maven.apache.org/install.html)
-3. Navigate to the Geyser root directory and run `git submodule update --init --recursive`. This downloads all the needed submodules for Geyser and is a crucial step in this process.
+3. Navigate to the Geyser root directory and run `git submodule update --init --recursive`. This command downloads all the needed submodules for Geyser and is a crucial step in this process.
 4. Run `mvn clean install` and locate to the `target` folder.
 
 ## Contributing

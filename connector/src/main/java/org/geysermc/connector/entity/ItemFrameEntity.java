@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,18 +30,16 @@ import com.github.steveice10.mc.protocol.data.game.entity.metadata.ItemStack;
 import com.github.steveice10.mc.protocol.data.game.entity.object.HangingDirection;
 import com.nukkitx.math.vector.Vector3f;
 import com.nukkitx.math.vector.Vector3i;
-import com.nukkitx.nbt.CompoundTagBuilder;
-import com.nukkitx.nbt.tag.CompoundTag;
-import com.nukkitx.protocol.bedrock.data.ItemData;
+import com.nukkitx.nbt.NbtMap;
+import com.nukkitx.nbt.NbtMapBuilder;
+import com.nukkitx.protocol.bedrock.data.inventory.ItemData;
 import com.nukkitx.protocol.bedrock.packet.BlockEntityDataPacket;
-import com.nukkitx.protocol.bedrock.packet.StartGamePacket;
 import com.nukkitx.protocol.bedrock.packet.UpdateBlockPacket;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.item.ItemEntry;
 import org.geysermc.connector.network.translators.item.ItemRegistry;
 import org.geysermc.connector.network.translators.item.ItemTranslator;
-import org.geysermc.connector.network.translators.world.block.BlockTranslator;
 
 import java.util.concurrent.TimeUnit;
 
@@ -51,14 +49,18 @@ import java.util.concurrent.TimeUnit;
 public class ItemFrameEntity extends Entity {
 
     /**
+     * Used to construct the block entity tag on spawning.
+     */
+    private final HangingDirection direction;
+    /**
      * Used for getting the Bedrock block position.
      * Blocks deal with integers whereas entities deal with floats.
      */
-    private final Vector3i bedrockPosition;
+    private Vector3i bedrockPosition;
     /**
      * Specific block 'state' we are emulating in Bedrock.
      */
-    private final int bedrockRuntimeId;
+    private int bedrockRuntimeId;
     /**
      * Rotation of item in frame.
      */
@@ -66,26 +68,25 @@ public class ItemFrameEntity extends Entity {
     /**
      * Cached item frame's Bedrock compound tag.
      */
-    private CompoundTag cachedTag;
+    private NbtMap cachedTag;
 
     public ItemFrameEntity(long entityId, long geyserId, EntityType entityType, Vector3f position, Vector3f motion, Vector3f rotation, HangingDirection direction) {
         super(entityId, geyserId, entityType, position, motion, rotation);
-        CompoundTagBuilder builder = CompoundTag.builder();
-        builder.tag(CompoundTag.builder()
-                .stringTag("name", "minecraft:frame")
-                .intTag("version", BlockTranslator.getBlockStateVersion())
-                .tag(CompoundTag.builder()
-                        .intTag("facing_direction", direction.ordinal())
-                        .byteTag("item_frame_map_bit", (byte) 0)
-                        .build("states"))
-                .build("block"));
-        builder.shortTag("id", (short) 199);
-        bedrockRuntimeId = BlockTranslator.getItemFrame(builder.buildRootTag());
-        bedrockPosition = Vector3i.from(position.getFloorX(), position.getFloorY(), position.getFloorZ());
+        this.direction = direction;
     }
 
     @Override
     public void spawnEntity(GeyserSession session) {
+        NbtMapBuilder blockBuilder = NbtMap.builder()
+                .putString("name", "minecraft:frame")
+                .putInt("version", session.getBlockTranslator().getBlockStateVersion());
+        blockBuilder.put("states", NbtMap.builder()
+                .putInt("facing_direction", direction.ordinal())
+                .putByte("item_frame_map_bit", (byte) 0)
+                .build());
+        bedrockRuntimeId = session.getBlockTranslator().getItemFrame(blockBuilder.build());
+        bedrockPosition = Vector3i.from(position.getFloorX(), position.getFloorY(), position.getFloorZ());
+
         session.getItemFrameCache().put(bedrockPosition, entityId);
         // Delay is required, or else loading in frames on chunk load is sketchy at best
         session.getConnector().getGeneralThreadPool().schedule(() -> {
@@ -98,29 +99,21 @@ public class ItemFrameEntity extends Entity {
     @Override
     public void updateBedrockMetadata(EntityMetadata entityMetadata, GeyserSession session) {
         if (entityMetadata.getId() == 7 && entityMetadata.getValue() != null) {
-            ItemData itemData = ItemTranslator.translateToBedrock((ItemStack) entityMetadata.getValue());
+            ItemData itemData = ItemTranslator.translateToBedrock(session, (ItemStack) entityMetadata.getValue());
             ItemEntry itemEntry = ItemRegistry.getItem((ItemStack) entityMetadata.getValue());
-            CompoundTagBuilder builder = CompoundTag.builder();
+            NbtMapBuilder builder = NbtMap.builder();
 
-            String blockName = "";
-            for (StartGamePacket.ItemEntry startGamePacketItemEntry : ItemRegistry.ITEMS) {
-                if (startGamePacketItemEntry.getId() == (short) itemEntry.getBedrockId()) {
-                    blockName = startGamePacketItemEntry.getIdentifier();
-                    break;
-                }
-            }
-
-            builder.byteTag("Count", (byte) itemData.getCount());
+            builder.putByte("Count", (byte) itemData.getCount());
             if (itemData.getTag() != null) {
-                builder.tag(itemData.getTag().toBuilder().build("tag"));
+                builder.put("tag", itemData.getTag().toBuilder().build());
             }
-            builder.shortTag("Damage", itemData.getDamage());
-            builder.stringTag("Name", blockName);
-            CompoundTagBuilder tag = getDefaultTag().toBuilder();
-            tag.tag(builder.build("Item"));
-            tag.floatTag("ItemDropChance", 1.0f);
-            tag.floatTag("ItemRotation", rotation);
-            cachedTag = tag.buildRootTag();
+            builder.putShort("Damage", (short) itemData.getDamage());
+            builder.putString("Name", itemEntry.getBedrockIdentifier());
+            NbtMapBuilder tag = getDefaultTag().toBuilder();
+            tag.put("Item", builder.build());
+            tag.putFloat("ItemDropChance", 1.0f);
+            tag.putFloat("ItemRotation", rotation);
+            cachedTag = tag.build();
             updateBlock(session);
         }
         else if (entityMetadata.getId() == 7 && entityMetadata.getValue() == null && cachedTag != null) {
@@ -133,9 +126,9 @@ public class ItemFrameEntity extends Entity {
                 updateBlock(session);
                 return;
             }
-            CompoundTagBuilder builder = cachedTag.toBuilder();
-            builder.floatTag("ItemRotation", rotation);
-            cachedTag = builder.buildRootTag();
+            NbtMapBuilder builder = cachedTag.toBuilder();
+            builder.putFloat("ItemRotation", rotation);
+            cachedTag = builder.build();
             updateBlock(session);
         }
         else {
@@ -148,9 +141,9 @@ public class ItemFrameEntity extends Entity {
         UpdateBlockPacket updateBlockPacket = new UpdateBlockPacket();
         updateBlockPacket.setDataLayer(0);
         updateBlockPacket.setBlockPosition(bedrockPosition);
-        updateBlockPacket.setRuntimeId(0);
+        updateBlockPacket.setRuntimeId(session.getBlockTranslator().getBedrockAirId());
         updateBlockPacket.getFlags().add(UpdateBlockPacket.Flag.PRIORITY);
-        updateBlockPacket.getFlags().add(UpdateBlockPacket.Flag.NONE);
+        updateBlockPacket.getFlags().add(UpdateBlockPacket.Flag.NETWORK);
         updateBlockPacket.getFlags().add(UpdateBlockPacket.Flag.NEIGHBORS);
         session.sendUpstreamPacket(updateBlockPacket);
         session.getItemFrameCache().remove(position, entityId);
@@ -158,14 +151,14 @@ public class ItemFrameEntity extends Entity {
         return true;
     }
 
-    private CompoundTag getDefaultTag() {
-        CompoundTagBuilder builder = CompoundTag.builder();
-        builder.intTag("x", bedrockPosition.getX());
-        builder.intTag("y", bedrockPosition.getY());
-        builder.intTag("z", bedrockPosition.getZ());
-        builder.byteTag("isMovable", (byte) 1);
-        builder.stringTag("id", "ItemFrame");
-        return builder.buildRootTag();
+    private NbtMap getDefaultTag() {
+        NbtMapBuilder builder = NbtMap.builder();
+        builder.putInt("x", bedrockPosition.getX());
+        builder.putInt("y", bedrockPosition.getY());
+        builder.putInt("z", bedrockPosition.getZ());
+        builder.putByte("isMovable", (byte) 1);
+        builder.putString("id", "ItemFrame");
+        return builder.build();
     }
 
     /**
@@ -178,7 +171,7 @@ public class ItemFrameEntity extends Entity {
         updateBlockPacket.setBlockPosition(bedrockPosition);
         updateBlockPacket.setRuntimeId(bedrockRuntimeId);
         updateBlockPacket.getFlags().add(UpdateBlockPacket.Flag.PRIORITY);
-        updateBlockPacket.getFlags().add(UpdateBlockPacket.Flag.NONE);
+        updateBlockPacket.getFlags().add(UpdateBlockPacket.Flag.NETWORK);
         updateBlockPacket.getFlags().add(UpdateBlockPacket.Flag.NEIGHBORS);
         session.sendUpstreamPacket(updateBlockPacket);
 
@@ -201,18 +194,6 @@ public class ItemFrameEntity extends Entity {
      */
     public static long getItemFrameEntityId(GeyserSession session, Vector3i position) {
         return session.getItemFrameCache().getOrDefault(position, -1);
-    }
-
-    /**
-     * Determines if the position contains an item frame.
-     * Does largely the same thing as getItemFrameEntityId, but for speed purposes is implemented separately,
-     * since every block destroy packet has to check for an item frame.
-     * @param position position of block.
-     * @param session GeyserSession.
-     * @return true if position contains item frame, false if not.
-     */
-    public static boolean positionContainsItemFrame(GeyserSession session, Vector3i position) {
-        return session.getItemFrameCache().containsKey(position);
     }
 
     /**

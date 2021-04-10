@@ -1,27 +1,26 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in
- *  all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- *  THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  *
- *  @author GeyserMC
- *  @link https://github.com/GeyserMC/Geyser
- *
+ * @author GeyserMC
+ * @link https://github.com/GeyserMC/Geyser
  */
 
 package org.geysermc.connector.network.translators.world.chunk.bitarray;
@@ -37,6 +36,8 @@ public enum BitArrayVersion {
     V3(3, 10, V4), // 2 bit padding
     V2(2, 16, V3),
     V1(1, 32, V2);
+
+    private static final BitArrayVersion[] VALUES = values();
 
     final byte bits;
     final byte entriesPerWord;
@@ -59,8 +60,14 @@ public enum BitArrayVersion {
         throw new IllegalArgumentException("Invalid palette version: " + version);
     }
 
-    public BitArray createPalette(int size) {
-        return this.createPalette(size, new int[MathUtils.ceil((float) size / entriesPerWord)]);
+    public static BitArrayVersion forBitsCeil(int bits) {
+        for (int i = VALUES.length - 1; i >= 0; i--)  {
+            BitArrayVersion version = VALUES[i];
+            if (version.bits >= bits)   {
+                return version;
+            }
+        }
+        return null;
     }
 
     public byte getId() {
@@ -79,7 +86,11 @@ public enum BitArrayVersion {
         return next;
     }
 
-    public BitArray createPalette(int size, int[] words) {
+    public BitArray createArray(int size) {
+        return this.createArray(size, new int[MathUtils.ceil((float) size / entriesPerWord)]);
+    }
+
+    public BitArray createArray(int size, int[] words) {
         if (this == V3 || this == V5 || this == V6) {
             // Padded palettes aren't able to use bitwise operations due to their padding.
             return new PaddedBitArray(this, size, words);

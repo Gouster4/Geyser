@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@ import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.PacketTranslator;
 import org.geysermc.connector.network.translators.Translator;
 import org.geysermc.connector.utils.EntityUtils;
+import org.geysermc.connector.utils.LanguageUtils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -48,7 +49,7 @@ public class JavaSpawnLivingEntityTranslator extends PacketTranslator<ServerSpaw
 
         EntityType type = EntityUtils.toBedrockEntity(packet.getType());
         if (type == null) {
-            session.getConnector().getLogger().warning("Entity type " + packet.getType() + " was null.");
+            session.getConnector().getLogger().warning(LanguageUtils.getLocaleStringLog("geyser.entity.type_null", packet.getType()));
             return;
         }
 

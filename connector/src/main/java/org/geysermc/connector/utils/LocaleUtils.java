@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,13 +28,17 @@ package org.geysermc.connector.utils;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.github.steveice10.mc.protocol.MinecraftConstants;
 import lombok.Getter;
 import org.geysermc.connector.GeyserConnector;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.*;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipFile;
 
 public class LocaleUtils {
@@ -43,18 +47,17 @@ public class LocaleUtils {
 
     private static final Map<String, Asset> ASSET_MAP = new HashMap<>();
 
-    private static final String DEFAULT_LOCALE = (GeyserConnector.getInstance().getConfig().getDefaultLocale() != null ? GeyserConnector.getInstance().getConfig().getDefaultLocale() : "en_us");
-
-    private static String smallestURL = "";
+    private static VersionDownload clientJarInfo;
 
     static {
         // Create the locales folder
-        File localesFolder = new File("locales/");
+        File localesFolder = GeyserConnector.getInstance().getBootstrap().getConfigFolder().resolve("locales").toFile();
+        //noinspection ResultOfMethodCallIgnored
         localesFolder.mkdir();
 
         // Download the latest asset list and cache it
         generateAssetCache();
-        downloadAndLoadLocale(DEFAULT_LOCALE);
+        downloadAndLoadLocale(LanguageUtils.getDefaultLocale());
     }
 
     /**
@@ -68,7 +71,7 @@ public class LocaleUtils {
             // Get the url for the latest version of the games manifest
             String latestInfoURL = "";
             for (Version version : versionManifest.getVersions()) {
-                if (version.getId().equals(versionManifest.getLatestVersion().getRelease())) {
+                if (version.getId().equals(MinecraftConstants.GAME_VERSION)) {
                     latestInfoURL = version.getUrl();
                     break;
                 }
@@ -76,20 +79,16 @@ public class LocaleUtils {
 
             // Make sure we definitely got a version
             if (latestInfoURL.isEmpty()) {
-                throw new Exception("Unable to get latest Minecraft version");
+                throw new Exception(LanguageUtils.getLocaleStringLog("geyser.locale.fail.latest_version"));
             }
 
             // Get the individual version manifest
             VersionInfo versionInfo = GeyserConnector.JSON_MAPPER.readValue(WebUtils.getBody(latestInfoURL), VersionInfo.class);
 
-            // Get the smallest jar for use when downloading the en_us locale, will be either the server or client
-            int currentSize = Integer.MAX_VALUE;
-            for (VersionDownload download : versionInfo.getDownloads().values()) {
-                if (download.getUrl().endsWith(".jar") && download.getSize() < currentSize) {
-                    smallestURL = download.getUrl();
-                    currentSize = download.getSize();
-                }
-            }
+            // Get the client jar for use when downloading the en_us locale
+            GeyserConnector.getInstance().getLogger().debug(GeyserConnector.JSON_MAPPER.writeValueAsString(versionInfo.getDownloads()));
+            clientJarInfo = versionInfo.getDownloads().get("client");
+            GeyserConnector.getInstance().getLogger().debug(GeyserConnector.JSON_MAPPER.writeValueAsString(clientJarInfo));
 
             // Get the assets list
             JsonNode assets = GeyserConnector.JSON_MAPPER.readTree(WebUtils.getBody(versionInfo.getAssetIndex().getUrl())).get("objects");
@@ -102,7 +101,7 @@ public class LocaleUtils {
                 ASSET_MAP.put(entry.getKey(), asset);
             }
         } catch (Exception e) {
-            GeyserConnector.getInstance().getLogger().info("Failed to load locale asset cache: " + (!e.getMessage().isEmpty() ? e.getMessage() : e.getStackTrace()));
+            GeyserConnector.getInstance().getLogger().error(LanguageUtils.getLocaleStringLog("geyser.locale.fail.asset_cache", (!e.getMessage().isEmpty() ? e.getMessage() : e.getStackTrace())));
         }
     }
 
@@ -116,7 +115,7 @@ public class LocaleUtils {
 
         // Check the locale isn't already loaded
         if (!ASSET_MAP.containsKey("minecraft/lang/" + locale + ".json") && !locale.equals("en_us")) {
-            GeyserConnector.getInstance().getLogger().warning("Invalid locale requested to download and load: " + locale);
+            GeyserConnector.getInstance().getLogger().warning(LanguageUtils.getLocaleStringLog("geyser.locale.fail.invalid", locale));
             return;
         }
 
@@ -132,12 +131,40 @@ public class LocaleUtils {
      * @param locale Locale to download
      */
     private static void downloadLocale(String locale) {
-        File localeFile = new File("locales/" + locale + ".json");
+        File localeFile = GeyserConnector.getInstance().getBootstrap().getConfigFolder().resolve("locales/" + locale + ".json").toFile();
 
         // Check if we have already downloaded the locale file
         if (localeFile.exists()) {
-            GeyserConnector.getInstance().getLogger().debug("Locale already downloaded: " + locale);
-            return;
+            String curHash = "";
+            String targetHash = "";
+
+            if (locale.equals("en_us")) {
+                try {
+                    File hashFile = GeyserConnector.getInstance().getBootstrap().getConfigFolder().resolve("locales/en_us.hash").toFile();
+                    if (hashFile.exists()) {
+                        try (BufferedReader br = new BufferedReader(new FileReader(hashFile))) {
+                            curHash = br.readLine().trim();
+                        }
+                    }
+                } catch (IOException ignored) { }
+
+                if (clientJarInfo == null) {
+                    // Likely failed to download
+                    GeyserConnector.getInstance().getLogger().debug("Skipping en_US hash check as client jar is null.");
+                    return;
+                }
+                targetHash = clientJarInfo.getSha1();
+            } else {
+                curHash = byteArrayToHexString(FileUtils.calculateSHA1(localeFile));
+                targetHash = ASSET_MAP.get("minecraft/lang/" + locale + ".json").getHash();
+            }
+
+            if (!curHash.equals(targetHash)) {
+                GeyserConnector.getInstance().getLogger().debug("Locale out of date; re-downloading: " + locale);
+            } else {
+                GeyserConnector.getInstance().getLogger().debug("Locale already downloaded and up-to date: " + locale);
+                return;
+            }
         }
 
         // Create the en_us locale
@@ -147,9 +174,13 @@ public class LocaleUtils {
             return;
         }
 
-        // Get the hash and download the locale
-        String hash = ASSET_MAP.get("minecraft/lang/" + locale + ".json").getHash();
-        WebUtils.downloadFile("http://resources.download.minecraft.net/" + hash.substring(0, 2) + "/" + hash, "locales/" + locale + ".json");
+        try {
+            // Get the hash and download the locale
+            String hash = ASSET_MAP.get("minecraft/lang/" + locale + ".json").getHash();
+            WebUtils.downloadFile("https://resources.download.minecraft.net/" + hash.substring(0, 2) + "/" + hash, localeFile.toString());
+        } catch (Exception e) {
+            GeyserConnector.getInstance().getLogger().error("Unable to download locale file hash", e);
+        }
     }
 
     /**
@@ -158,7 +189,7 @@ public class LocaleUtils {
      * @param locale Locale to load
      */
     private static void loadLocale(String locale) {
-        File localeFile = new File("locales/" + locale + ".json");
+        File localeFile = GeyserConnector.getInstance().getBootstrap().getConfigFolder().resolve("locales/" + locale + ".json").toFile();
 
         // Load the locale
         if (localeFile.exists()) {
@@ -167,7 +198,7 @@ public class LocaleUtils {
             try {
                 localeStream = new FileInputStream(localeFile);
             } catch (FileNotFoundException e) {
-                throw new AssertionError("Unable to load locale: " + locale + " (" + e.getMessage() + ")");
+                throw new AssertionError(LanguageUtils.getLocaleStringLog("geyser.locale.fail.file", locale, e.getMessage()));
             }
 
             // Parse the file as json
@@ -175,7 +206,7 @@ public class LocaleUtils {
             try {
                 localeObj = GeyserConnector.JSON_MAPPER.readTree(localeStream);
             } catch (Exception e) {
-                throw new AssertionError("Unable to load Java edition lang map for " + locale, e);
+                throw new AssertionError(LanguageUtils.getLocaleStringLog("geyser.locale.fail.json", locale), e);
             }
 
             // Parse all the locale fields
@@ -188,8 +219,14 @@ public class LocaleUtils {
 
             // Insert the locale into the mappings
             LOCALE_MAPPINGS.put(locale.toLowerCase(), langMap);
+
+            try {
+                localeStream.close();
+            } catch (IOException e) {
+                throw new AssertionError(LanguageUtils.getLocaleStringLog("geyser.locale.fail.file", locale, e.getMessage()));
+            }
         } else {
-            GeyserConnector.getInstance().getLogger().warning("Missing locale file: " + locale);
+            GeyserConnector.getInstance().getLogger().warning(LanguageUtils.getLocaleStringLog("geyser.locale.fail.missing", locale));
         }
     }
 
@@ -201,35 +238,38 @@ public class LocaleUtils {
     private static void downloadEN_US(File localeFile) {
         try {
             // Let the user know we are downloading the JAR
-            GeyserConnector.getInstance().getLogger().info("Downloading Minecraft JAR to extract en_us locale, please wait... (this may take some time depending on the speed of your internet connection)");
-            GeyserConnector.getInstance().getLogger().debug("Download URL: " + smallestURL);
+            GeyserConnector.getInstance().getLogger().info(LanguageUtils.getLocaleStringLog("geyser.locale.download.en_us"));
+            GeyserConnector.getInstance().getLogger().debug("Download URL: " + clientJarInfo.getUrl());
 
             // Download the smallest JAR (client or server)
-            WebUtils.downloadFile(smallestURL, "tmp_locale.jar");
+            Path tmpFilePath = GeyserConnector.getInstance().getBootstrap().getConfigFolder().resolve("tmp_locale.jar");
+            WebUtils.downloadFile(clientJarInfo.getUrl(), tmpFilePath.toString());
 
             // Load in the JAR as a zip and extract the file
-            ZipFile localeJar = new ZipFile("tmp_locale.jar");
-            InputStream inputStream = localeJar.getInputStream(localeJar.getEntry("assets/minecraft/lang/en_us.json"));
-            FileOutputStream outputStream = new FileOutputStream(localeFile);
+            try (ZipFile localeJar = new ZipFile(tmpFilePath.toString())) {
+                try (InputStream fileStream = localeJar.getInputStream(localeJar.getEntry("assets/minecraft/lang/en_us.json"))) {
+                    try (FileOutputStream outStream = new FileOutputStream(localeFile)) {
 
-            // Write the file to the locale dir
-            int data = inputStream.read();
-            while(data != -1){
-                outputStream.write(data);
-                data = inputStream.read();
+                        // Write the file to the locale dir
+                        byte[] buf = new byte[fileStream.available()];
+                        int length;
+                        while ((length = fileStream.read(buf)) != -1) {
+                            outStream.write(buf, 0, length);
+                        }
+
+                        // Flush all changes to disk and cleanup
+                        outStream.flush();
+                    }
+                }
             }
 
-            // Flush all changes to disk and cleanup
-            outputStream.flush();
-            outputStream.close();
-
-            inputStream.close();
-            localeJar.close();
+            // Store the latest jar hash
+            FileUtils.writeFile(GeyserConnector.getInstance().getBootstrap().getConfigFolder().resolve("locales/en_us.hash").toString(), clientJarInfo.getSha1().toCharArray());
 
             // Delete the nolonger needed client/server jar
-            Files.delete(Paths.get("tmp_locale.jar"));
+            Files.delete(tmpFilePath);
         } catch (Exception e) {
-            throw new AssertionError("Unable to download and extract en_us locale!", e);
+            GeyserConnector.getInstance().getLogger().error(LanguageUtils.getLocaleStringLog("geyser.locale.fail.en_us"), e);
         }
     }
 
@@ -242,10 +282,30 @@ public class LocaleUtils {
      */
     public static String getLocaleString(String messageText, String locale) {
         Map<String, String> localeStrings = LocaleUtils.LOCALE_MAPPINGS.get(locale.toLowerCase());
-        if (localeStrings == null)
-            localeStrings = LocaleUtils.LOCALE_MAPPINGS.get(DEFAULT_LOCALE);
+        if (localeStrings == null) {
+            localeStrings = LocaleUtils.LOCALE_MAPPINGS.get(LanguageUtils.getDefaultLocale());
+            if (localeStrings == null) {
+                // Don't cause a NPE if the locale is STILL missing
+                GeyserConnector.getInstance().getLogger().debug("MISSING DEFAULT LOCALE: " + LanguageUtils.getDefaultLocale());
+                return messageText;
+            }
+        }
 
         return localeStrings.getOrDefault(messageText, messageText);
+    }
+
+    /**
+     * Convert a byte array into a hex string
+     *
+     * @param b Byte array to convert
+     * @return The hex representation of the given byte array
+     */
+    private static String byteArrayToHexString(byte[] b) {
+        StringBuilder result = new StringBuilder();
+        for (byte value : b) {
+            result.append(Integer.toString((value & 0xff) + 0x100, 16).substring(1));
+        }
+        return result.toString();
     }
 
     public static void init() {

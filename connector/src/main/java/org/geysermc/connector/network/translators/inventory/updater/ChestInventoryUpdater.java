@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,20 +25,22 @@
 
 package org.geysermc.connector.network.translators.inventory.updater;
 
-import com.nukkitx.protocol.bedrock.data.ItemData;
+import com.nukkitx.protocol.bedrock.data.inventory.ItemData;
 import com.nukkitx.protocol.bedrock.packet.InventoryContentPacket;
 import com.nukkitx.protocol.bedrock.packet.InventorySlotPacket;
 import lombok.AllArgsConstructor;
 import org.geysermc.connector.inventory.Inventory;
 import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.inventory.InventoryTranslator;
-import org.geysermc.connector.network.translators.item.ItemTranslator;
 import org.geysermc.connector.utils.InventoryUtils;
+import org.geysermc.connector.utils.LanguageUtils;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @AllArgsConstructor
 public class ChestInventoryUpdater extends InventoryUpdater {
-    private static final ItemData UNUSUABLE_SPACE_BLOCK = InventoryUtils.createUnusableSpaceBlock(
-            "This slot does not exist in the inventory\non Java Edition, as there is less\nrows than possible in Bedrock");
+    private static final ItemData UNUSUABLE_SPACE_BLOCK = InventoryUtils.createUnusableSpaceBlock(LanguageUtils.getLocaleStringLog("geyser.inventory.unusable_item.slot"));
 
     private final int paddedSize;
 
@@ -46,12 +48,12 @@ public class ChestInventoryUpdater extends InventoryUpdater {
     public void updateInventory(InventoryTranslator translator, GeyserSession session, Inventory inventory) {
         super.updateInventory(translator, session, inventory);
 
-        ItemData[] bedrockItems = new ItemData[paddedSize];
-        for (int i = 0; i < bedrockItems.length; i++) {
+        List<ItemData> bedrockItems = new ArrayList<>(paddedSize);
+        for (int i = 0; i < paddedSize; i++) {
             if (i < translator.size) {
-                bedrockItems[i] = ItemTranslator.translateToBedrock(inventory.getItem(i));
+                bedrockItems.add(inventory.getItem(i).getItemData(session));
             } else {
-                bedrockItems[i] = UNUSUABLE_SPACE_BLOCK;
+                bedrockItems.add(UNUSUABLE_SPACE_BLOCK);
             }
         }
 
@@ -69,7 +71,7 @@ public class ChestInventoryUpdater extends InventoryUpdater {
         InventorySlotPacket slotPacket = new InventorySlotPacket();
         slotPacket.setContainerId(inventory.getId());
         slotPacket.setSlot(translator.javaSlotToBedrock(javaSlot));
-        slotPacket.setItem(ItemTranslator.translateToBedrock(inventory.getItem(javaSlot)));
+        slotPacket.setItem(inventory.getItem(javaSlot).getItemData(session));
         session.sendUpstreamPacket(slotPacket);
         return true;
     }

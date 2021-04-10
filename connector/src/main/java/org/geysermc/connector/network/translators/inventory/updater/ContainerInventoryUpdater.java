@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,27 +25,30 @@
 
 package org.geysermc.connector.network.translators.inventory.updater;
 
-import com.nukkitx.protocol.bedrock.data.ItemData;
+import com.nukkitx.protocol.bedrock.data.inventory.ItemData;
 import com.nukkitx.protocol.bedrock.packet.InventoryContentPacket;
 import com.nukkitx.protocol.bedrock.packet.InventorySlotPacket;
 import org.geysermc.connector.inventory.Inventory;
 import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.inventory.InventoryTranslator;
-import org.geysermc.connector.network.translators.item.ItemTranslator;
+
+import java.util.Arrays;
 
 public class ContainerInventoryUpdater extends InventoryUpdater {
+    public static final ContainerInventoryUpdater INSTANCE = new ContainerInventoryUpdater();
+
     @Override
     public void updateInventory(InventoryTranslator translator, GeyserSession session, Inventory inventory) {
         super.updateInventory(translator, session, inventory);
 
         ItemData[] bedrockItems = new ItemData[translator.size];
         for (int i = 0; i < bedrockItems.length; i++) {
-            bedrockItems[translator.javaSlotToBedrock(i)] = ItemTranslator.translateToBedrock(inventory.getItem(i));
+            bedrockItems[translator.javaSlotToBedrock(i)] = inventory.getItem(i).getItemData(session);
         }
 
         InventoryContentPacket contentPacket = new InventoryContentPacket();
         contentPacket.setContainerId(inventory.getId());
-        contentPacket.setContents(bedrockItems);
+        contentPacket.setContents(Arrays.asList(bedrockItems));
         session.sendUpstreamPacket(contentPacket);
     }
 
@@ -57,7 +60,7 @@ public class ContainerInventoryUpdater extends InventoryUpdater {
         InventorySlotPacket slotPacket = new InventorySlotPacket();
         slotPacket.setContainerId(inventory.getId());
         slotPacket.setSlot(translator.javaSlotToBedrock(javaSlot));
-        slotPacket.setItem(ItemTranslator.translateToBedrock(inventory.getItem(javaSlot)));
+        slotPacket.setItem(inventory.getItem(javaSlot).getItemData(session));
         session.sendUpstreamPacket(slotPacket);
         return true;
     }

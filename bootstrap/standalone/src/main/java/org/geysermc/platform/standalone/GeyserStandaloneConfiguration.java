@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,111 +26,17 @@
 package org.geysermc.platform.standalone;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import lombok.Getter;
-import org.geysermc.connector.GeyserConfiguration;
+import org.geysermc.connector.configuration.GeyserJacksonConfiguration;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
-public class GeyserStandaloneConfiguration implements GeyserConfiguration {
-
-    private BedrockConfiguration bedrock;
-    private RemoteConfiguration remote;
-
-    @JsonProperty("floodgate-key-file")
-    private String floodgateKeyFile;
-
-    private Map<String, UserAuthenticationInfo> userAuths;
-
-    @JsonProperty("command-suggestions")
-    private boolean isCommandSuggestions;
-
-    @JsonProperty("passthrough-motd")
-    private boolean isPassthroughMotd;
-
-    @JsonProperty("passthrough-player-counts")
-    private boolean isPassthroughPlayerCounts;
-
-    @JsonProperty("legacy-ping-passthrough")
-    private boolean isLegacyPingPassthrough;
-
-    @JsonProperty("ping-passthrough-interval")
-    private int pingPassthroughInterval;
-
-    @JsonProperty("max-players")
-    private int maxPlayers;
-
-    @JsonProperty("debug-mode")
-    private boolean debugMode;
-
-    @JsonProperty("general-thread-pool")
-    private int generalThreadPool;
-
-    @JsonProperty("allow-third-party-capes")
-    private boolean allowThirdPartyCapes;
-
-    @JsonProperty("allow-third-party-ears")
-    private boolean allowThirdPartyEars;
-
-    @JsonProperty("default-locale")
-    private String defaultLocale;
-
-    @JsonProperty("cache-chunks")
-    private boolean cacheChunks;
-
-    @JsonProperty("above-bedrock-nether-building")
-    private boolean isAboveBedrockNetherBuilding;
-
-    private MetricsInfo metrics;
-
+@JsonIgnoreProperties(ignoreUnknown = true)
+public final class GeyserStandaloneConfiguration extends GeyserJacksonConfiguration {
     @Override
-    public Path getFloodgateKeyFile() {
-        return Paths.get(floodgateKeyFile);
+    public Path getFloodgateKeyPath() {
+        return Paths.get(getFloodgateKeyFile());
     }
-
-    @Getter
-    public static class BedrockConfiguration implements IBedrockConfiguration {
-
-        private String address;
-        private int port;
-
-        private String motd1;
-        private String motd2;
-    }
-
-    @Getter
-    public static class RemoteConfiguration implements IRemoteConfiguration {
-
-        private String address;
-        private int port;
-
-        private String motd1;
-        private String motd2;
-
-        @JsonProperty("auth-type")
-        private String authType;
-    }
-
-    @Getter
-    public static class UserAuthenticationInfo implements IUserAuthenticationInfo {
-        private String email;
-        private String password;
-    }
-
-    @Getter
-    public static class MetricsInfo implements IMetricsInfo {
-
-        private boolean enabled;
-
-        @JsonProperty("uuid")
-        private String uniqueId;
-    }
-
-    @JsonProperty("config-version")
-    private int configVersion;
 }

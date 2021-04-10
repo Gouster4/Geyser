@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -60,6 +60,9 @@ public class JavaEntityAnimationTranslator extends PacketTranslator<ServerEntity
             case LEAVE_BED:
                 animatePacket.setAction(AnimatePacket.Action.WAKE_UP);
                 break;
+            default:
+                // Unknown Animation
+                return;
         }
 
         session.sendUpstreamPacket(animatePacket);

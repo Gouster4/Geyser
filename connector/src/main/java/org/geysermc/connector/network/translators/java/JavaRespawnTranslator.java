@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,20 +25,18 @@
 
 package org.geysermc.connector.network.translators.java;
 
+import com.github.steveice10.mc.protocol.packet.ingame.server.ServerRespawnPacket;
 import com.nukkitx.math.vector.Vector3f;
 import com.nukkitx.protocol.bedrock.data.LevelEventType;
 import com.nukkitx.protocol.bedrock.packet.LevelEventPacket;
+import com.nukkitx.protocol.bedrock.packet.SetPlayerGameTypePacket;
 import org.geysermc.connector.entity.Entity;
 import org.geysermc.connector.entity.attribute.AttributeType;
 import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.PacketTranslator;
 import org.geysermc.connector.network.translators.Translator;
+import org.geysermc.connector.network.translators.inventory.InventoryTranslator;
 import org.geysermc.connector.utils.DimensionUtils;
-
-import com.github.steveice10.mc.protocol.packet.ingame.server.ServerRespawnPacket;
-import com.nukkitx.protocol.bedrock.packet.SetPlayerGameTypePacket;
-
-import java.util.concurrent.ThreadLocalRandom;
 
 @Translator(packet = ServerRespawnPacket.class)
 public class JavaRespawnTranslator extends PacketTranslator<ServerRespawnPacket> {
@@ -46,37 +44,49 @@ public class JavaRespawnTranslator extends PacketTranslator<ServerRespawnPacket>
     @Override
     public void translate(ServerRespawnPacket packet, GeyserSession session) {
         Entity entity = session.getPlayerEntity();
-        if (entity == null)
-            return;
 
         float maxHealth = entity.getAttributes().containsKey(AttributeType.MAX_HEALTH) ? entity.getAttributes().get(AttributeType.MAX_HEALTH).getValue() : 20f;
         // Max health must be divisible by two in bedrock
         entity.getAttributes().put(AttributeType.HEALTH, AttributeType.HEALTH.getAttribute(maxHealth, (maxHealth % 2 == 1 ? maxHealth + 1 : maxHealth)));
 
-        session.getInventoryCache().setOpenInventory(null);
+        session.addInventoryTask(() -> {
+            session.setInventoryTranslator(InventoryTranslator.PLAYER_INVENTORY_TRANSLATOR);
+            session.setOpenInventory(null);
+            session.setClosingInventory(false);
+        });
 
         SetPlayerGameTypePacket playerGameTypePacket = new SetPlayerGameTypePacket();
         playerGameTypePacket.setGamemode(packet.getGamemode().ordinal());
         session.sendUpstreamPacket(playerGameTypePacket);
         session.setGameMode(packet.getGamemode());
 
-        LevelEventPacket stopRainPacket = new LevelEventPacket();
-        stopRainPacket.setType(LevelEventType.STOP_RAIN);
-        stopRainPacket.setData(ThreadLocalRandom.current().nextInt(50000) + 10000);
-        stopRainPacket.setPosition(Vector3f.ZERO);
-        session.sendUpstreamPacket(stopRainPacket);
+        if (session.isRaining()) {
+            LevelEventPacket stopRainPacket = new LevelEventPacket();
+            stopRainPacket.setType(LevelEventType.STOP_RAINING);
+            stopRainPacket.setData(0);
+            stopRainPacket.setPosition(Vector3f.ZERO);
+            session.sendUpstreamPacket(stopRainPacket);
+            session.setRaining(false);
+        }
 
-        if (entity.getDimension() != DimensionUtils.javaToBedrock(packet.getDimension())) {
-            DimensionUtils.switchDimension(session, packet.getDimension());
-        } else {
-            if (session.isManyDimPackets()) { //reloading world
-                int fakeDim = entity.getDimension() == 0 ? -1 : 0;
+        if (session.isThunder()) {
+            LevelEventPacket stopThunderPacket = new LevelEventPacket();
+            stopThunderPacket.setType(LevelEventType.STOP_THUNDERSTORM);
+            stopThunderPacket.setData(0);
+            stopThunderPacket.setPosition(Vector3f.ZERO);
+            session.sendUpstreamPacket(stopThunderPacket);
+            session.setThunder(false);
+        }
+
+        String newDimension = DimensionUtils.getNewDimension(packet.getDimension());
+        if (!session.getDimension().equals(newDimension) || !packet.getWorldName().equals(session.getWorldName())) {
+            if (!packet.getWorldName().equals(session.getWorldName()) && session.getDimension().equals(newDimension)) {
+                // Switching to a new world (based off the world name change); send a fake dimension change
+                String fakeDim = DimensionUtils.getTemporaryDimension(session.getDimension(), newDimension);
                 DimensionUtils.switchDimension(session, fakeDim);
-                DimensionUtils.switchDimension(session, packet.getDimension());
-            } else {
-                // Handled in JavaPlayerPositionRotationTranslator
-                session.setSpawned(false);
             }
+            session.setWorldName(packet.getWorldName());
+            DimensionUtils.switchDimension(session, newDimension);
         }
     }
 }

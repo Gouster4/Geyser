@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,35 +27,27 @@ package org.geysermc.connector.entity.living.animal.horse;
 
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.EntityMetadata;
 import com.nukkitx.math.vector.Vector3f;
-import com.nukkitx.protocol.bedrock.data.Attribute;
-import com.nukkitx.protocol.bedrock.data.EntityFlag;
-import com.nukkitx.protocol.bedrock.packet.UpdateAttributesPacket;
-import org.geysermc.connector.entity.attribute.AttributeType;
+import com.nukkitx.protocol.bedrock.data.entity.EntityData;
+import com.nukkitx.protocol.bedrock.data.entity.EntityEventType;
+import com.nukkitx.protocol.bedrock.data.entity.EntityFlag;
+import com.nukkitx.protocol.bedrock.data.inventory.ContainerType;
+import com.nukkitx.protocol.bedrock.packet.EntityEventPacket;
 import org.geysermc.connector.entity.living.animal.AnimalEntity;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
-import org.geysermc.connector.utils.AttributeUtils;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import org.geysermc.connector.network.translators.item.ItemRegistry;
 
 public class AbstractHorseEntity extends AnimalEntity {
 
-    // For updating the horse visual easier
-    private float health = 20f;
-
     public AbstractHorseEntity(long entityId, long geyserId, EntityType entityType, Vector3f position, Vector3f motion, Vector3f rotation) {
         super(entityId, geyserId, entityType, position, motion, rotation);
+
+        // Specifies the size of the entity's inventory. Required to place slots in the entity.
+        metadata.put(EntityData.CONTAINER_BASE_SIZE, 2);
     }
 
     @Override
     public void updateBedrockMetadata(EntityMetadata entityMetadata, GeyserSession session) {
-
-        if (entityMetadata.getId() == 8) {
-            health = (float) entityMetadata.getValue();
-            updateBedrockAttributes(session);
-        }
 
         if (entityMetadata.getId() == 16) {
             byte xd = (byte) entityMetadata.getValue();
@@ -63,6 +55,33 @@ public class AbstractHorseEntity extends AnimalEntity {
             metadata.getFlags().setFlag(EntityFlag.SADDLED, (xd & 0x04) == 0x04);
             metadata.getFlags().setFlag(EntityFlag.EATING, (xd & 0x10) == 0x10);
             metadata.getFlags().setFlag(EntityFlag.STANDING, (xd & 0x20) == 0x20);
+
+            // HorseFlags
+            // Bred 0x10
+            // Eating 0x20
+            // Open mouth 0x80
+            int horseFlags = 0x0;
+            horseFlags = (xd & 0x40) == 0x40 ? horseFlags | 0x80 : horseFlags;
+
+            // Only set eating when we don't have mouth open so a player interaction doesn't trigger the eating animation
+            horseFlags = (xd & 0x10) == 0x10 && (xd & 0x40) != 0x40 ? horseFlags | 0x20 : horseFlags;
+
+            // Set the flags into the display item
+            metadata.put(EntityData.DISPLAY_ITEM, horseFlags);
+
+            // Send the eating particles
+            // We use the wheat metadata as static particles since Java
+            // doesn't send over what item was used to feed the horse
+            if ((xd & 0x40) == 0x40) {
+                EntityEventPacket entityEventPacket = new EntityEventPacket();
+                entityEventPacket.setRuntimeEntityId(geyserId);
+                entityEventPacket.setType(EntityEventType.EATING_ITEM);
+                entityEventPacket.setData(ItemRegistry.WHEAT.getBedrockId() << 16);
+                session.sendUpstreamPacket(entityEventPacket);
+            }
+
+            // Set container type if tamed
+            metadata.put(EntityData.CONTAINER_TYPE, ((xd & 0x02) == 0x02) ? (byte) ContainerType.HORSE.getId() : (byte) 0);
         }
 
         // Needed to control horses
@@ -70,26 +89,5 @@ public class AbstractHorseEntity extends AnimalEntity {
         metadata.getFlags().setFlag(EntityFlag.WASD_CONTROLLED, true);
 
         super.updateBedrockMetadata(entityMetadata, session);
-    }
-
-    @Override
-    public void updateBedrockAttributes(GeyserSession session) {
-        if (!valid) return;
-
-        float maxHealth = attributes.containsKey(AttributeType.MAX_HEALTH) ? attributes.get(AttributeType.MAX_HEALTH).getValue() : 20f;
-
-        List<com.nukkitx.protocol.bedrock.data.Attribute> attributesLocal = new ArrayList<>();
-        for (Map.Entry<AttributeType, org.geysermc.connector.entity.attribute.Attribute> entry : this.attributes.entrySet()) {
-            if (!entry.getValue().getType().isBedrockAttribute())
-                continue;
-
-            attributesLocal.add(AttributeUtils.getBedrockAttribute(entry.getValue()));
-        }
-        attributesLocal.add(new Attribute("minecraft:health", 0.0f, maxHealth, health, maxHealth));
-
-        UpdateAttributesPacket updateAttributesPacket = new UpdateAttributesPacket();
-        updateAttributesPacket.setRuntimeEntityId(geyserId);
-        updateAttributesPacket.setAttributes(attributesLocal);
-        session.sendUpstreamPacket(updateAttributesPacket);
     }
 }

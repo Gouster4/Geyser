@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,43 +25,24 @@
 
 package org.geysermc.connector.network.translators.world.block.entity;
 
-import com.github.steveice10.mc.protocol.data.game.world.block.BlockState;
 import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
-import com.nukkitx.nbt.CompoundTagBuilder;
-import com.nukkitx.nbt.tag.ByteTag;
-import com.nukkitx.nbt.tag.Tag;
+import com.nukkitx.nbt.NbtMapBuilder;
 import org.geysermc.connector.network.translators.world.block.BlockStateValues;
 
-import java.util.ArrayList;
-import java.util.List;
-
-@BlockEntity(name = "Bed", regex = "bed")
+@BlockEntity(name = "Bed")
 public class BedBlockEntityTranslator extends BlockEntityTranslator implements RequiresBlockState {
-
     @Override
-    public boolean isBlock(BlockState blockState) {
+    public boolean isBlock(int blockState) {
         return BlockStateValues.getBedColor(blockState) != -1;
     }
 
     @Override
-    public List<Tag<?>> translateTag(CompoundTag tag, BlockState blockState) {
-        List<Tag<?>> tags = new ArrayList<>();
+    public void translateTag(NbtMapBuilder builder, CompoundTag tag, int blockState) {
         byte bedcolor = BlockStateValues.getBedColor(blockState);
         // Just in case...
-        if (bedcolor == -1) bedcolor = 0;
-        tags.add(new ByteTag("color", bedcolor));
-        return tags;
-    }
-
-    @Override
-    public CompoundTag getDefaultJavaTag(String javaId, int x, int y, int z) {
-        return null;
-    }
-
-    @Override
-    public com.nukkitx.nbt.tag.CompoundTag getDefaultBedrockTag(String bedrockId, int x, int y, int z) {
-        CompoundTagBuilder tagBuilder = getConstantBedrockTag(bedrockId, x, y, z).toBuilder();
-        tagBuilder.byteTag("color", (byte) 0);
-        return tagBuilder.buildRootTag();
+        if (bedcolor == -1) {
+            bedcolor = 0;
+        }
+        builder.put("color", bedcolor);
     }
 }

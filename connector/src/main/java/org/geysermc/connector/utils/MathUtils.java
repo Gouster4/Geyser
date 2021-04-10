@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,8 @@ package org.geysermc.connector.utils;
 
 public class MathUtils {
 
+    public static final double SQRT_OF_TWO = Math.sqrt(2);
+
     /**
      * Round the given float to the next whole number
      *
@@ -36,6 +38,26 @@ public class MathUtils {
     public static int ceil(float floatNumber) {
         int truncated = (int) floatNumber;
         return floatNumber > truncated ? truncated + 1 : truncated;
+    }
+
+    /**
+     * If number is greater than the max, set it to max, and if number is lower than low, set it to low.
+     * @param num number to calculate
+     * @param min the lowest value the number can be
+     * @param max the greatest value the number can be
+     * @return - min if num is lower than min <br>
+     * - max if num is greater than max <br>
+     * - num otherwise
+     */
+    public static double constrain(double num, double min, double max) {
+        if (num > max) {
+            num = max;
+        }
+        if (num < min) {
+            num = min;
+        }
+
+        return num;
     }
 
     /**
@@ -51,5 +73,16 @@ public class MathUtils {
             return ((Integer) value).byteValue();
         }
         return (Byte) value;
+    }
+
+    /**
+     * Packs a chunk's X and Z coordinates into a single {@code long}.
+     *
+     * @param x the X coordinate
+     * @param z the Z coordinate
+     * @return the packed coordinates
+     */
+    public static long chunkPositionToLong(int x, int z) {
+        return ((x & 0xFFFFFFFFL) << 32L) | (z & 0xFFFFFFFFL);
     }
 }

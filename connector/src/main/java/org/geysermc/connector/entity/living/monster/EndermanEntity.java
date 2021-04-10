@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,13 +26,13 @@
 package org.geysermc.connector.entity.living.monster;
 
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.EntityMetadata;
-import com.github.steveice10.mc.protocol.data.game.world.block.BlockState;
 import com.nukkitx.math.vector.Vector3f;
-import com.nukkitx.protocol.bedrock.data.EntityData;
-import com.nukkitx.protocol.bedrock.data.EntityFlag;
+import com.nukkitx.protocol.bedrock.data.SoundEvent;
+import com.nukkitx.protocol.bedrock.data.entity.EntityData;
+import com.nukkitx.protocol.bedrock.data.entity.EntityFlag;
+import com.nukkitx.protocol.bedrock.packet.LevelSoundEvent2Packet;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
-import org.geysermc.connector.network.translators.world.block.BlockTranslator;
 
 public class EndermanEntity extends MonsterEntity {
 
@@ -44,13 +44,23 @@ public class EndermanEntity extends MonsterEntity {
     public void updateBedrockMetadata(EntityMetadata entityMetadata, GeyserSession session) {
         // Held block
         if (entityMetadata.getId() == 15) {
-            metadata.put(EntityData.ENDERMAN_HELD_ITEM_ID, BlockTranslator.getBedrockBlockId((BlockState) entityMetadata.getValue()));
+            metadata.put(EntityData.CARRIED_BLOCK, session.getBlockTranslator().getBedrockBlockId((int) entityMetadata.getValue()));
         }
-        // 'Angry' - mouth open
+        // "Is screaming" - controls sound
         if (entityMetadata.getId() == 16) {
+            if ((boolean) entityMetadata.getValue()) {
+                LevelSoundEvent2Packet packet = new LevelSoundEvent2Packet();
+                packet.setSound(SoundEvent.STARE);
+                packet.setPosition(this.position);
+                packet.setExtraData(-1);
+                packet.setIdentifier("minecraft:enderman");
+                session.sendUpstreamPacket(packet);
+            }
+        }
+        // "Is staring/provoked" - controls visuals
+        if (entityMetadata.getId() == 17) {
             metadata.getFlags().setFlag(EntityFlag.ANGRY, (boolean) entityMetadata.getValue());
         }
-        // TODO: ID 17 is stared at but I don't believe it's used - maybe only for the sound effect. Check after particle merge
         super.updateBedrockMetadata(entityMetadata, session);
     }
 }

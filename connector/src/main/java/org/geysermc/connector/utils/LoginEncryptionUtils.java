@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,19 +29,18 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
+import com.github.steveice10.mc.auth.service.MsaAuthenticationService;
 import com.nimbusds.jose.JWSObject;
 import com.nukkitx.network.util.Preconditions;
 import com.nukkitx.protocol.bedrock.packet.LoginPacket;
 import com.nukkitx.protocol.bedrock.packet.ServerToClientHandshakePacket;
 import com.nukkitx.protocol.bedrock.util.EncryptionUtils;
-import org.geysermc.common.window.CustomFormBuilder;
-import org.geysermc.common.window.CustomFormWindow;
-import org.geysermc.common.window.FormWindow;
-import org.geysermc.common.window.SimpleFormWindow;
+import org.geysermc.common.window.*;
 import org.geysermc.common.window.button.FormButton;
 import org.geysermc.common.window.component.InputComponent;
 import org.geysermc.common.window.component.LabelComponent;
 import org.geysermc.common.window.response.CustomFormResponse;
+import org.geysermc.common.window.response.ModalFormResponse;
 import org.geysermc.common.window.response.SimpleFormResponse;
 import org.geysermc.connector.GeyserConnector;
 import org.geysermc.connector.network.session.GeyserSession;
@@ -72,7 +71,7 @@ public class LoginEncryptionUtils {
             }
 
             if (lastKey != null) {
-                EncryptionUtils.verifyJwt(jwt, lastKey);
+                 if (!EncryptionUtils.verifyJwt(jwt, lastKey)) return false;
             }
 
             JsonNode payloadNode = JSON_MAPPER.readTree(jwt.getPayload().toString());
@@ -105,6 +104,10 @@ public class LoginEncryptionUtils {
 
             connector.getLogger().debug(String.format("Is player data valid? %s", validChain));
 
+            if (!validChain && !session.getConnector().getConfig().isEnableProxyConnections()) {
+                session.disconnect(LanguageUtils.getLocaleStringLog("geyser.network.remote.invalid_xbox_account"));
+                return;
+            }
             JWSObject jwt = JWSObject.parse(certChainData.get(certChainData.size() - 1).asText());
             JsonNode payload = JSON_MAPPER.readTree(jwt.getPayload().toBytes());
 
@@ -152,25 +155,56 @@ public class LoginEncryptionUtils {
         session.sendUpstreamPacketImmediately(packet);
     }
 
-    private static int AUTH_FORM_ID = 1336;
-    private static int AUTH_DETAILS_FORM_ID = 1337;
+    private static final int AUTH_MSA_DETAILS_FORM_ID = 1334;
+    private static final int AUTH_MSA_CODE_FORM_ID = 1335;
+    private static final int AUTH_FORM_ID = 1336;
+    private static final int AUTH_DETAILS_FORM_ID = 1337;
 
     public static void showLoginWindow(GeyserSession session) {
-        SimpleFormWindow window = new SimpleFormWindow("Login", "You need a Java Edition account to play on this server.");
-        window.getButtons().add(new FormButton("Login with Minecraft"));
-        window.getButtons().add(new FormButton("Disconnect"));
+        // Set DoDaylightCycle to false so the time doesn't accelerate while we're here
+        session.setDaylightCycle(false);
+
+        String userLanguage = session.getLocale();
+        SimpleFormWindow window = new SimpleFormWindow(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.notice.title", userLanguage), LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.notice.desc", userLanguage));
+        if (session.getConnector().getConfig().getRemote().isPasswordAuthentication()) {
+            window.getButtons().add(new FormButton(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.notice.btn_login.mojang", userLanguage)));
+        }
+        window.getButtons().add(new FormButton(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.notice.btn_login.microsoft", userLanguage)));
+        window.getButtons().add(new FormButton(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.notice.btn_disconnect", userLanguage)));
 
         session.sendForm(window, AUTH_FORM_ID);
     }
 
     public static void showLoginDetailsWindow(GeyserSession session) {
-        CustomFormWindow window = new CustomFormBuilder("Login Details")
-                .addComponent(new LabelComponent("Enter the credentials for your Minecraft: Java Edition account below."))
-                .addComponent(new InputComponent("Email/Username", "account@geysermc.org", ""))
-                .addComponent(new InputComponent("Password", "123456", ""))
+        String userLanguage = session.getLocale();
+        CustomFormWindow window = new CustomFormBuilder(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.details.title", userLanguage))
+                .addComponent(new LabelComponent(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.details.desc", userLanguage)))
+                .addComponent(new InputComponent(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.details.email", userLanguage), "account@geysermc.org", ""))
+                .addComponent(new InputComponent(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.details.pass", userLanguage), "123456", ""))
                 .build();
 
         session.sendForm(window, AUTH_DETAILS_FORM_ID);
+    }
+
+    /**
+     * Prompts the user between either OAuth code login or manual password authentication
+     */
+    public static void showMicrosoftAuthenticationWindow(GeyserSession session) {
+        String userLanguage = session.getLocale();
+        SimpleFormWindow window = new SimpleFormWindow(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.notice.btn_login.microsoft", userLanguage), "");
+        window.getButtons().add(new FormButton(LanguageUtils.getPlayerLocaleString("geyser.auth.login.method.browser", userLanguage)));
+        window.getButtons().add(new FormButton(LanguageUtils.getPlayerLocaleString("geyser.auth.login.method.password", userLanguage))); // This form won't show if password authentication is disabled
+        window.getButtons().add(new FormButton(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.notice.btn_disconnect", userLanguage)));
+        session.sendForm(window, AUTH_MSA_DETAILS_FORM_ID);
+    }
+
+    /**
+     * Shows the code that a user must input into their browser
+     */
+    public static void showMicrosoftCodeWindow(GeyserSession session, MsaAuthenticationService.MsCodeResponse response) {
+        ModalFormWindow msaCodeWindow = new ModalFormWindow("%xbox.signin", "%xbox.signin.website\n%xbox.signin.url\n%xbox.signin.enterCode\n" +
+                response.user_code, "%gui.done", "%menu.disconnect");
+        session.sendForm(msaCodeWindow, LoginEncryptionUtils.AUTH_MSA_CODE_FORM_ID);
     }
 
     public static boolean authenticateFromForm(GeyserSession session, GeyserConnector connector, int formId, String formData) {
@@ -178,7 +212,7 @@ public class LoginEncryptionUtils {
         if (!windowCache.getWindows().containsKey(formId))
             return false;
 
-        if(formId == AUTH_FORM_ID || formId == AUTH_DETAILS_FORM_ID) {
+        if (formId == AUTH_MSA_DETAILS_FORM_ID || formId == AUTH_FORM_ID || formId == AUTH_DETAILS_FORM_ID || formId == AUTH_MSA_CODE_FORM_ID) {
             FormWindow window = windowCache.getWindows().remove(formId);
             window.setResponse(formData.trim());
 
@@ -192,22 +226,56 @@ public class LoginEncryptionUtils {
                         String password = response.getInputResponses().get(2);
 
                         session.authenticate(email, password);
+
+                        // Clear windows so authentication data isn't accidentally cached
+                        windowCache.getWindows().clear();
                     } else {
                         showLoginDetailsWindow(session);
                     }
-
-                    // Clear windows so authentication data isn't accidentally cached
-                    windowCache.getWindows().clear();
                 } else if (formId == AUTH_FORM_ID && window instanceof SimpleFormWindow) {
+                    boolean isPasswordAuthentication = session.getConnector().getConfig().getRemote().isPasswordAuthentication();
+                    int microsoftButton = isPasswordAuthentication ? 1 : 0;
+                    int disconnectButton = isPasswordAuthentication ? 2 : 1;
                     SimpleFormResponse response = (SimpleFormResponse) window.getResponse();
                     if (response != null) {
-                        if (response.getClickedButtonId() == 0) {
+                        if (isPasswordAuthentication && response.getClickedButtonId() == 0) {
+                            session.setMicrosoftAccount(false);
                             showLoginDetailsWindow(session);
-                        } else if (response.getClickedButtonId() == 1) {
-                            session.disconnect("Login is required");
+                        } else if (response.getClickedButtonId() == microsoftButton) {
+                            session.setMicrosoftAccount(true);
+                            if (isPasswordAuthentication) {
+                                showMicrosoftAuthenticationWindow(session);
+                            } else {
+                                // Just show the OAuth code
+                                session.authenticateWithMicrosoftCode();
+                            }
+                        } else if (response.getClickedButtonId() == disconnectButton) {
+                            session.disconnect(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.disconnect", session.getLocale()));
                         }
                     } else {
                         showLoginWindow(session);
+                    }
+                } else if (formId == AUTH_MSA_DETAILS_FORM_ID && window instanceof SimpleFormWindow) {
+                    SimpleFormResponse response = (SimpleFormResponse) window.getResponse();
+                    if (response != null) {
+                        if (response.getClickedButtonId() == 0) {
+                            session.authenticateWithMicrosoftCode();
+                        } else if (response.getClickedButtonId() == 1) {
+                            showLoginDetailsWindow(session);
+                        } else if (response.getClickedButtonId() == 2) {
+                            session.disconnect(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.disconnect", session.getLocale()));
+                        }
+                    } else {
+                        showLoginWindow(session);
+                    }
+                } else if (formId == AUTH_MSA_CODE_FORM_ID && window instanceof ModalFormWindow) {
+                    ModalFormResponse response = (ModalFormResponse) window.getResponse();
+                    if (response != null) {
+                        if (response.getClickedButtonId() == 1) {
+                            session.disconnect(LanguageUtils.getPlayerLocaleString("geyser.auth.login.form.disconnect", session.getLocale()));
+                        }
+                    } else {
+                        showMicrosoftAuthenticationWindow(session);
                     }
                 }
             }

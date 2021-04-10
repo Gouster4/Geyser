@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ package org.geysermc.connector.entity.living.monster;
 
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.EntityMetadata;
 import com.nukkitx.math.vector.Vector3f;
-import com.nukkitx.protocol.bedrock.data.EntityData;
+import com.nukkitx.protocol.bedrock.data.entity.EntityData;
 import org.geysermc.connector.entity.Entity;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
@@ -46,7 +46,7 @@ public class WitherEntity extends MonsterEntity {
 
         if (entityMetadata.getId() >= 15 && entityMetadata.getId() <= 17) {
             Entity entity = session.getEntityCache().getEntityByJavaId((int) entityMetadata.getValue());
-            if (entity == null && session.getPlayerEntity().getEntityId() == (Integer) entityMetadata.getValue()) {
+            if (entity == null && session.getPlayerEntity().getEntityId() == (int) entityMetadata.getValue()) {
                 entity = session.getPlayerEntity();
             }
 
@@ -62,7 +62,7 @@ public class WitherEntity extends MonsterEntity {
         } else if (entityMetadata.getId() == 17) {
             metadata.put(EntityData.WITHER_TARGET_3, targetID);
         } else if (entityMetadata.getId() == 18) {
-            metadata.put(EntityData.WITHER_INVULNERABLE_TICKS, (int) entityMetadata.getValue());
+            metadata.put(EntityData.WITHER_INVULNERABLE_TICKS, entityMetadata.getValue());
 
             // Show the shield for the first few seconds of spawning (like Java)
             if ((int) entityMetadata.getValue() >= 165) {

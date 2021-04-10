@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,12 +36,14 @@ public class JavaPlayerChangeHeldItemTranslator extends PacketTranslator<ServerP
 
     @Override
     public void translate(ServerPlayerChangeHeldItemPacket packet, GeyserSession session) {
-        PlayerHotbarPacket hotbarPacket = new PlayerHotbarPacket();
-        hotbarPacket.setContainerId(0);
-        hotbarPacket.setSelectedHotbarSlot(packet.getSlot());
-        hotbarPacket.setSelectHotbarSlot(true);
-        session.sendUpstreamPacket(hotbarPacket);
+        session.addInventoryTask(() -> {
+            PlayerHotbarPacket hotbarPacket = new PlayerHotbarPacket();
+            hotbarPacket.setContainerId(0);
+            hotbarPacket.setSelectedHotbarSlot(packet.getSlot());
+            hotbarPacket.setSelectHotbarSlot(true);
+            session.sendUpstreamPacket(hotbarPacket);
 
-        session.getInventory().setHeldItemSlot(packet.getSlot());
+            session.getPlayerInventory().setHeldItemSlot(packet.getSlot());
+        });
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,20 +26,22 @@
 package org.geysermc.connector.network.translators.java.world;
 
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.ItemStack;
-import com.github.steveice10.mc.protocol.data.game.world.particle.*;
-import com.nukkitx.protocol.bedrock.data.ItemData;
+import com.github.steveice10.mc.protocol.data.game.world.particle.BlockParticleData;
+import com.github.steveice10.mc.protocol.data.game.world.particle.DustParticleData;
+import com.github.steveice10.mc.protocol.data.game.world.particle.FallingDustParticleData;
+import com.github.steveice10.mc.protocol.data.game.world.particle.ItemParticleData;
+import com.github.steveice10.mc.protocol.packet.ingame.server.world.ServerSpawnParticlePacket;
+import com.nukkitx.math.vector.Vector3f;
 import com.nukkitx.protocol.bedrock.data.LevelEventType;
+import com.nukkitx.protocol.bedrock.data.inventory.ItemData;
 import com.nukkitx.protocol.bedrock.packet.LevelEventPacket;
 import com.nukkitx.protocol.bedrock.packet.SpawnParticleEffectPacket;
 import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.PacketTranslator;
 import org.geysermc.connector.network.translators.Translator;
-import org.geysermc.connector.network.translators.item.ItemTranslator;
-import org.geysermc.connector.network.translators.world.block.BlockTranslator;
-
-import com.github.steveice10.mc.protocol.packet.ingame.server.world.ServerSpawnParticlePacket;
-import com.nukkitx.math.vector.Vector3f;
 import org.geysermc.connector.network.translators.effect.EffectRegistry;
+import org.geysermc.connector.network.translators.item.ItemTranslator;
+import org.geysermc.connector.utils.DimensionUtils;
 
 @Translator(packet = ServerSpawnParticlePacket.class)
 public class JavaSpawnParticleTranslator extends PacketTranslator<ServerSpawnParticlePacket> {
@@ -49,24 +51,24 @@ public class JavaSpawnParticleTranslator extends PacketTranslator<ServerSpawnPar
         LevelEventPacket particle = new LevelEventPacket();
         switch (packet.getParticle().getType()) {
             case BLOCK:
-                particle.setType(LevelEventType.DESTROY);
+                particle.setType(LevelEventType.PARTICLE_DESTROY_BLOCK_NO_SOUND);
                 particle.setPosition(Vector3f.from(packet.getX(), packet.getY(), packet.getZ()));
-                particle.setData(BlockTranslator.getBedrockBlockId(((BlockParticleData) packet.getParticle().getData()).getBlockState()));
+                particle.setData(session.getBlockTranslator().getBedrockBlockId(((BlockParticleData) packet.getParticle().getData()).getBlockState()));
                 session.sendUpstreamPacket(particle);
                 break;
             case FALLING_DUST:
                 //In fact, FallingDustParticle should have data like DustParticle,
                 //but in MCProtocol, its data is BlockState(1).
                 particle.setType(LevelEventType.PARTICLE_FALLING_DUST);
-                particle.setData(BlockTranslator.getBedrockBlockId(((FallingDustParticleData)packet.getParticle().getData()).getBlockState()));
+                particle.setData(session.getBlockTranslator().getBedrockBlockId(((FallingDustParticleData)packet.getParticle().getData()).getBlockState()));
                 particle.setPosition(Vector3f.from(packet.getX(), packet.getY(), packet.getZ()));
                 session.sendUpstreamPacket(particle);
                 break;
             case ITEM:
                 ItemStack javaItem = ((ItemParticleData)packet.getParticle().getData()).getItemStack();
-                ItemData bedrockItem = ItemTranslator.translateToBedrock(javaItem);
+                ItemData bedrockItem = ItemTranslator.translateToBedrock(session, javaItem);
                 int id = bedrockItem.getId();
-                short damage = bedrockItem.getDamage();
+                int damage = bedrockItem.getDamage();
                 particle.setType(LevelEventType.PARTICLE_ITEM_BREAK);
                 particle.setData(id << 16 | damage);
                 particle.setPosition(Vector3f.from(packet.getX(), packet.getY(), packet.getZ()));
@@ -93,7 +95,7 @@ public class JavaSpawnParticleTranslator extends PacketTranslator<ServerSpawnPar
                     if (stringParticle != null) {
                         SpawnParticleEffectPacket stringPacket = new SpawnParticleEffectPacket();
                         stringPacket.setIdentifier(stringParticle);
-                        stringPacket.setDimensionId(session.getPlayerEntity().getDimension());
+                        stringPacket.setDimensionId(DimensionUtils.javaToBedrock(session.getDimension()));
                         stringPacket.setPosition(Vector3f.from(packet.getX(), packet.getY(), packet.getZ()));
                         session.sendUpstreamPacket(stringPacket);
                     }

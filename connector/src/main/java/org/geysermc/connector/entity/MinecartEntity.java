@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,10 +27,9 @@ package org.geysermc.connector.entity;
 
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.EntityMetadata;
 import com.nukkitx.math.vector.Vector3f;
-import com.nukkitx.protocol.bedrock.data.EntityData;
+import com.nukkitx.protocol.bedrock.data.entity.EntityData;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
-import org.geysermc.connector.network.translators.world.block.BlockTranslator;
 
 public class MinecartEntity extends Entity {
 
@@ -55,10 +54,10 @@ public class MinecartEntity extends Entity {
             metadata.put(EntityData.HURT_TIME, Math.min((int) (float) entityMetadata.getValue(), 15));
         }
 
-        if (!(this instanceof FurnaceMinecartEntity)) { // Handled in FurnaceMinecartEntity.java
+        if (!(this instanceof DefaultBlockMinecartEntity)) { // Handled in the DefaultBlockMinecartEntity class
             // Custom block
             if (entityMetadata.getId() == 10) {
-                metadata.put(EntityData.DISPLAY_ITEM, BlockTranslator.getBedrockBlockId((int) entityMetadata.getValue()));
+                metadata.put(EntityData.DISPLAY_ITEM, session.getBlockTranslator().getBedrockBlockId((int) entityMetadata.getValue()));
             }
 
             // Custom block offset
@@ -69,7 +68,7 @@ public class MinecartEntity extends Entity {
             // If the custom block should be enabled
             if (entityMetadata.getId() == 12) {
                 // Needs a byte based off of Java's boolean
-                metadata.put(EntityData.HAS_DISPLAY, (byte) ((boolean) entityMetadata.getValue() ? 1 : 0));
+                metadata.put(EntityData.CUSTOM_DISPLAY, (byte) ((boolean) entityMetadata.getValue() ? 1 : 0));
             }
         }
 

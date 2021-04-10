@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,28 +25,12 @@
 
 package org.geysermc.connector.network.translators.world.block.entity;
 
-import com.github.steveice10.mc.protocol.data.game.world.block.BlockState;
 import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
-import com.nukkitx.nbt.tag.Tag;
+import com.nukkitx.nbt.NbtMapBuilder;
 
-import java.util.ArrayList;
-import java.util.List;
-
-@BlockEntity(name = "Empty", regex = "")
+@BlockEntity(name = "Empty")
 public class EmptyBlockEntityTranslator extends BlockEntityTranslator {
-
     @Override
-    public List<Tag<?>> translateTag(CompoundTag tag, BlockState blockState) {
-        return new ArrayList<>();
-    }
-
-    @Override
-    public CompoundTag getDefaultJavaTag(String javaId, int x, int y, int z) {
-        return getConstantJavaTag(javaId, x, y, z);
-    }
-
-    @Override
-    public com.nukkitx.nbt.tag.CompoundTag getDefaultBedrockTag(String bedrockId, int x, int y, int z) {
-        return getConstantBedrockTag(bedrockId, x, y, z);
+    public void translateTag(NbtMapBuilder builder, CompoundTag tag, int blockState) {
     }
 }

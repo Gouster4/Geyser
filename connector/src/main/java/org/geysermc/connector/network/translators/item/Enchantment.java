@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -66,7 +66,20 @@ public enum Enchantment {
     CHANNELING,
     MULTISHOT,
     PIERCING,
-    QUICK_CHARGE;
+    QUICK_CHARGE,
+    SOUL_SPEED;
+
+    /**
+     * A list of all enchantment Java identifiers for use with command suggestions.
+     */
+    public static final String[] ALL_JAVA_IDENTIFIERS;
+
+    static {
+        ALL_JAVA_IDENTIFIERS = new String[values().length];
+        for (int i = 0; i < ALL_JAVA_IDENTIFIERS.length; i++) {
+            ALL_JAVA_IDENTIFIERS[i] = values()[i].javaIdentifier;
+        }
+    }
 
     private final String javaIdentifier;
 
@@ -76,7 +89,7 @@ public enum Enchantment {
 
     public static Enchantment getByJavaIdentifier(String javaIdentifier) {
         for (Enchantment enchantment : Enchantment.values()) {
-            if (enchantment.javaIdentifier.equals(javaIdentifier)) {
+            if (enchantment.javaIdentifier.equals(javaIdentifier) || enchantment.name().toLowerCase(Locale.ENGLISH).equalsIgnoreCase(javaIdentifier)) {
                 return enchantment;
             }
         }

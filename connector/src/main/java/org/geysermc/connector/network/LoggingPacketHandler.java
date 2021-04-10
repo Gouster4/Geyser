@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -129,11 +129,6 @@ public class LoggingPacketHandler implements BedrockPacketHandler {
 
     @Override
     public boolean handle(EntityEventPacket packet) {
-        return defaultHandler(packet);
-    }
-
-    @Override
-    public boolean handle(EntityFallPacket packet) {
         return defaultHandler(packet);
     }
 
@@ -628,12 +623,12 @@ public class LoggingPacketHandler implements BedrockPacketHandler {
     }
 
     @Override
-    public boolean handle(StructureTemplateDataExportRequestPacket packet) {
+    public boolean handle(StructureTemplateDataRequestPacket packet) {
         return defaultHandler(packet);
     }
 
     @Override
-    public boolean handle(StructureTemplateDataExportResponsePacket packet) {
+    public boolean handle(StructureTemplateDataResponsePacket packet) {
         return defaultHandler(packet);
     }
 
@@ -754,6 +749,115 @@ public class LoggingPacketHandler implements BedrockPacketHandler {
 
     @Override
     public boolean handle(MultiplayerSettingsPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    // 1.16 new packets
+
+    @Override
+    public boolean handle(DebugInfoPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    // I question if God exists because of this packet - God does not exist if I find out there's a built-in dab
+    // TODO for the future: redirect this as a /me command
+    // TODO for the far future: should we have a client mod that handles skins, handle these too
+    @Override
+    public boolean handle(EmoteListPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(CodeBuilderPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(CreativeContentPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(ItemStackRequestPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(LevelSoundEvent1Packet packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(ItemStackResponsePacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(PlayerArmorDamagePacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(PlayerEnchantOptionsPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(UpdatePlayerGameTypePacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(PacketViolationWarningPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(PositionTrackingDBClientRequestPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(PositionTrackingDBServerBroadcastPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    // 1.16.100 new packets
+
+    @Override
+    public boolean handle(MotionPredictionHintsPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(AnimateEntityPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(CameraShakePacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(PlayerFogPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(CorrectPlayerMovePredictionPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    @Override
+    public boolean handle(ItemComponentPacket packet) {
+        return defaultHandler(packet);
+    }
+
+    // 1.16.200 new packet
+
+    @Override
+    public boolean handle(FilterTextPacket packet) {
         return defaultHandler(packet);
     }
 }

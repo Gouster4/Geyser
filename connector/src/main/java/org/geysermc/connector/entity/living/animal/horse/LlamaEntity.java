@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,8 +27,8 @@ package org.geysermc.connector.entity.living.animal.horse;
 
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.EntityMetadata;
 import com.nukkitx.math.vector.Vector3f;
-import com.nukkitx.protocol.bedrock.data.EntityData;
-import com.nukkitx.protocol.bedrock.data.ItemData;
+import com.nukkitx.protocol.bedrock.data.entity.EntityData;
+import com.nukkitx.protocol.bedrock.data.inventory.ItemData;
 import com.nukkitx.protocol.bedrock.packet.MobArmorEquipmentPacket;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
@@ -38,6 +38,8 @@ public class LlamaEntity extends ChestedHorseEntity {
 
     public LlamaEntity(long entityId, long geyserId, EntityType entityType, Vector3f position, Vector3f motion, Vector3f rotation) {
         super(entityId, geyserId, entityType, position, motion, rotation);
+
+        metadata.put(EntityData.CONTAINER_STRENGTH_MODIFIER, 3); // Presumably 3 slots for every 1 strength
     }
 
     @Override
@@ -54,9 +56,12 @@ public class LlamaEntity extends ChestedHorseEntity {
             // -1 means no armor
             if ((int) entityMetadata.getValue() != -1) {
                 // The damage value is the dye color that Java sends us
-                // Always going to be a carpet so we can hardcode 171 in BlockTranslator
-                // The int then short conversion is required or we get a ClassCastException
-                equipmentPacket.setChestplate(ItemData.of(BlockTranslator.CARPET, (short)((int) entityMetadata.getValue()), 1));
+                // The item is always going to be a carpet
+                equipmentPacket.setChestplate(ItemData.builder()
+                        .id(BlockTranslator.CARPET)
+                        .damage((int) entityMetadata.getValue())
+                        .count(1)
+                        .build());
             } else {
                 equipmentPacket.setChestplate(ItemData.AIR);
             }

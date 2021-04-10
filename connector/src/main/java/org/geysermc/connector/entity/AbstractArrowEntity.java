@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ package org.geysermc.connector.entity;
 
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.EntityMetadata;
 import com.nukkitx.math.vector.Vector3f;
-import com.nukkitx.protocol.bedrock.data.EntityFlag;
+import com.nukkitx.protocol.bedrock.data.entity.EntityFlag;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
 
@@ -35,6 +35,8 @@ public class AbstractArrowEntity extends Entity {
 
     public AbstractArrowEntity(long entityId, long geyserId, EntityType entityType, Vector3f position, Vector3f motion, Vector3f rotation) {
         super(entityId, geyserId, entityType, position, motion, rotation);
+
+        setMotion(motion);
     }
 
     @Override
@@ -46,5 +48,21 @@ public class AbstractArrowEntity extends Entity {
         }
 
         super.updateBedrockMetadata(entityMetadata, session);
+    }
+
+    @Override
+    public void setRotation(Vector3f rotation) {
+        // Ignore the rotation sent by the Java server since the
+        // Java client calculates the rotation from the motion
+    }
+
+    @Override
+    public void setMotion(Vector3f motion) {
+        super.setMotion(motion);
+
+        double horizontalSpeed = Math.sqrt(motion.getX() * motion.getX() + motion.getZ() * motion.getZ());
+        float yaw = (float) Math.toDegrees(Math.atan2(motion.getX(), motion.getZ()));
+        float pitch = (float) Math.toDegrees(Math.atan2(motion.getY(), horizontalSpeed));
+        rotation = Vector3f.from(yaw, pitch, yaw);
     }
 }

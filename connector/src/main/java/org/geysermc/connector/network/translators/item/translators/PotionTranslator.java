@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,7 @@ package org.geysermc.connector.network.translators.item.translators;
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.ItemStack;
 import com.github.steveice10.opennbt.tag.builtin.StringTag;
 import com.github.steveice10.opennbt.tag.builtin.Tag;
-import com.nukkitx.protocol.bedrock.data.ItemData;
+import com.nukkitx.protocol.bedrock.data.inventory.ItemData;
 import org.geysermc.connector.GeyserConnector;
 import org.geysermc.connector.network.translators.item.ItemRegistry;
 import org.geysermc.connector.network.translators.item.ItemTranslator;
@@ -42,22 +42,26 @@ import java.util.stream.Collectors;
 @ItemRemapper
 public class PotionTranslator extends ItemTranslator {
 
-    private List<ItemEntry> appliedItems;
+    private final List<ItemEntry> appliedItems;
 
     public PotionTranslator() {
         appliedItems = ItemRegistry.ITEM_ENTRIES.values().stream().filter(entry -> entry.getJavaIdentifier().endsWith("potion")).collect(Collectors.toList());
     }
 
     @Override
-    public ItemData translateToBedrock(ItemStack itemStack, ItemEntry itemEntry) {
+    public ItemData.Builder translateToBedrock(ItemStack itemStack, ItemEntry itemEntry) {
         if (itemStack.getNbt() == null) return super.translateToBedrock(itemStack, itemEntry);
         Tag potionTag = itemStack.getNbt().get("Potion");
         if (potionTag instanceof StringTag) {
             Potion potion = Potion.getByJavaIdentifier(((StringTag) potionTag).getValue());
             if (potion != null) {
-                return ItemData.of(itemEntry.getBedrockId(), potion.getBedrockId(), itemStack.getAmount(), translateNbtToBedrock(itemStack.getNbt()));
+                return ItemData.builder()
+                        .id(itemEntry.getBedrockId())
+                        .damage(potion.getBedrockId())
+                        .count(itemStack.getAmount())
+                        .tag(translateNbtToBedrock(itemStack.getNbt()));
             }
-            GeyserConnector.getInstance().getLogger().debug("Unknown java potion: " + potionTag.getValue());
+            GeyserConnector.getInstance().getLogger().debug("Unknown Java potion: " + potionTag.getValue());
         }
         return super.translateToBedrock(itemStack, itemEntry);
     }

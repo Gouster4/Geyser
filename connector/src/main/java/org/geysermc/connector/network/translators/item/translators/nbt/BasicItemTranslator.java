@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,14 +29,14 @@ import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
 import com.github.steveice10.opennbt.tag.builtin.ListTag;
 import com.github.steveice10.opennbt.tag.builtin.StringTag;
 import com.github.steveice10.opennbt.tag.builtin.Tag;
-import net.kyori.text.Component;
-import net.kyori.text.TextComponent;
-import net.kyori.text.serializer.gson.GsonComponentSerializer;
-import net.kyori.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.ItemRemapper;
-import org.geysermc.connector.network.translators.item.NbtItemStackTranslator;
 import org.geysermc.connector.network.translators.item.ItemEntry;
-import org.geysermc.connector.utils.MessageUtils;
+import org.geysermc.connector.network.translators.item.NbtItemStackTranslator;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +45,7 @@ import java.util.List;
 public class BasicItemTranslator extends NbtItemStackTranslator {
 
     @Override
-    public void translateToBedrock(CompoundTag itemTag, ItemEntry itemEntry) {
+    public void translateToBedrock(GeyserSession session, CompoundTag itemTag, ItemEntry itemEntry) {
         if (!itemTag.contains("display")) {
             return;
         }
@@ -100,16 +100,16 @@ public class BasicItemTranslator extends NbtItemStackTranslator {
         if (message.startsWith("§r")) {
             message = message.replaceFirst("§r", "");
         }
-        Component component = TextComponent.of(message);
-        return GsonComponentSerializer.INSTANCE.serialize(component);
+        Component component = Component.text(message);
+        return GsonComponentSerializer.gson().serialize(component);
     }
 
     private String toBedrockMessage(StringTag tag) {
         String message = tag.getValue();
         if (message == null) return null;
-        TextComponent component = (TextComponent) MessageUtils.phraseJavaMessage(message);
-        String legacy = LegacyComponentSerializer.legacy().serialize(component);
-        if (hasFormatting(LegacyComponentSerializer.legacy().deserialize(legacy))) {
+        TextComponent component = (TextComponent) GsonComponentSerializer.gson().deserialize(message);
+        String legacy = LegacyComponentSerializer.legacySection().serialize(component);
+        if (hasFormatting(LegacyComponentSerializer.legacySection().deserialize(legacy))) {
             return "§r" + legacy;
         }
         return legacy;

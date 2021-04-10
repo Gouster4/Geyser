@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,61 +25,43 @@
 
 package org.geysermc.connector.network.translators.world.block.entity;
 
-import com.github.steveice10.mc.protocol.data.game.world.block.BlockState;
 import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
+import com.github.steveice10.opennbt.tag.builtin.IntTag;
 import com.github.steveice10.opennbt.tag.builtin.LongTag;
-import com.nukkitx.nbt.CompoundTagBuilder;
-import com.nukkitx.nbt.tag.IntTag;
-import com.nukkitx.nbt.tag.Tag;
+import com.github.steveice10.opennbt.tag.builtin.Tag;
+import com.nukkitx.nbt.NbtList;
+import com.nukkitx.nbt.NbtMapBuilder;
+import com.nukkitx.nbt.NbtType;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 
-@BlockEntity(name = "EndGateway", regex = "end_gateway")
+@BlockEntity(name = "EndGateway")
 public class EndGatewayBlockEntityTranslator extends BlockEntityTranslator {
-
     @Override
-    public List<Tag<?>> translateTag(CompoundTag tag, BlockState blockState) {
-        List<Tag<?>> tags = new ArrayList<>();
-        tags.add(new IntTag("Age", (int) (long) tag.get("Age").getValue()));
+    public void translateTag(NbtMapBuilder builder, CompoundTag tag, int blockState) {
+        Tag ageTag = tag.get("Age");
+        if (ageTag instanceof LongTag) {
+            builder.put("Age", (int) ((long) ageTag.getValue()));
+        }
         // Java sometimes does not provide this tag, but Bedrock crashes if it doesn't exist
         // Linked coordinates
-        List<IntTag> tagsList = new ArrayList<>();
+        IntList tagsList = new IntArrayList();
         // Yes, the axis letters are capitalized
-        tagsList.add(new IntTag("", getExitPortalCoordinate(tag, "X")));
-        tagsList.add(new IntTag("", getExitPortalCoordinate(tag, "Y")));
-        tagsList.add(new IntTag("", getExitPortalCoordinate(tag, "Z")));
-        com.nukkitx.nbt.tag.ListTag<IntTag> exitPortal =
-                new com.nukkitx.nbt.tag.ListTag<>("ExitPortal", IntTag.class, tagsList);
-        tags.add(exitPortal);
-        return tags;
-    }
-
-    @Override
-    public CompoundTag getDefaultJavaTag(String javaId, int x, int y, int z) {
-        CompoundTag tag = getConstantJavaTag(javaId, x, y, z);
-        tag.put(new LongTag("Age"));
-        return tag;
-    }
-
-    @Override
-    public com.nukkitx.nbt.tag.CompoundTag getDefaultBedrockTag(String bedrockId, int x, int y, int z) {
-        CompoundTagBuilder tagBuilder = getConstantBedrockTag(bedrockId, x, y, z).toBuilder();
-        List<IntTag> tagsList = new ArrayList<>();
-        tagsList.add(new IntTag("", 0));
-        tagsList.add(new IntTag("", 0));
-        tagsList.add(new IntTag("", 0));
-        tagBuilder.listTag("ExitPortal", IntTag.class, tagsList);
-        return tagBuilder.buildRootTag();
+        tagsList.add(getExitPortalCoordinate(tag, "X"));
+        tagsList.add(getExitPortalCoordinate(tag, "Y"));
+        tagsList.add(getExitPortalCoordinate(tag, "Z"));
+        builder.put("ExitPortal", new NbtList<>(NbtType.INT, tagsList));
     }
 
     private int getExitPortalCoordinate(CompoundTag tag, String axis) {
         // Return 0 if it doesn't exist, otherwise give proper value
         if (tag.get("ExitPortal") != null) {
-            LinkedHashMap compoundTag = (LinkedHashMap) tag.get("ExitPortal").getValue();
-            com.github.steveice10.opennbt.tag.builtin.IntTag intTag = (com.github.steveice10.opennbt.tag.builtin.IntTag) compoundTag.get(axis);
+            LinkedHashMap<?, ?> compoundTag = (LinkedHashMap<?, ?>) tag.get("ExitPortal").getValue();
+            IntTag intTag = (IntTag) compoundTag.get(axis);
             return intTag.getValue();
-        } return 0;
+        }
+        return 0;
     }
 }

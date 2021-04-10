@@ -1,27 +1,26 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in
- *  all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- *  THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  *
- *  @author GeyserMC
- *  @link https://github.com/GeyserMC/Geyser
- *
+ * @author GeyserMC
+ * @link https://github.com/GeyserMC/Geyser
  */
 
 package org.geysermc.connector.network.translators.world.chunk;
@@ -30,29 +29,31 @@ import com.nukkitx.network.VarInts;
 import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import lombok.Getter;
 import org.geysermc.connector.network.translators.world.chunk.bitarray.BitArray;
 import org.geysermc.connector.network.translators.world.chunk.bitarray.BitArrayVersion;
 
 import java.util.function.IntConsumer;
 
+@Getter
 public class BlockStorage {
 
-    private static final int SIZE = 4096;
+    public static final int SIZE = 4096;
 
     private final IntList palette;
     private BitArray bitArray;
 
-    public BlockStorage() {
-        this(BitArrayVersion.V2);
+    public BlockStorage(int airBlockId) {
+        this(airBlockId, BitArrayVersion.V2);
     }
 
-    public BlockStorage(BitArrayVersion version) {
-        this.bitArray = version.createPalette(SIZE);
+    public BlockStorage(int airBlockId, BitArrayVersion version) {
+        this.bitArray = version.createArray(SIZE);
         this.palette = new IntArrayList(16);
-        this.palette.add(0); // Air is at the start of every palette.
+        this.palette.add(airBlockId); // Air is at the start of every palette and controls what the default block is in second-layer non-air block spaces.
     }
 
-    private BlockStorage(BitArray bitArray, IntArrayList palette) {
+    public BlockStorage(BitArray bitArray, IntList palette) {
         this.palette = palette;
         this.bitArray = bitArray;
     }
@@ -65,16 +66,16 @@ public class BlockStorage {
         return BitArrayVersion.get(header >> 1, true);
     }
 
-    public synchronized int getFullBlock(int index) {
+    public int getFullBlock(int index) {
         return this.palette.getInt(this.bitArray.get(index));
     }
 
-    public synchronized void setFullBlock(int index, int runtimeId) {
+    public void setFullBlock(int index, int runtimeId) {
         int idx = this.idFor(runtimeId);
         this.bitArray.set(index, idx);
     }
 
-    public synchronized void writeToNetwork(ByteBuf buffer) {
+    public void writeToNetwork(ByteBuf buffer) {
         buffer.writeByte(getPaletteHeader(bitArray.getVersion(), true));
 
         for (int word : bitArray.getWords()) {
@@ -85,8 +86,18 @@ public class BlockStorage {
         palette.forEach((IntConsumer) id -> VarInts.writeInt(buffer, id));
     }
 
+    public int estimateNetworkSize() {
+        int size = 1; // Palette header
+        size += this.bitArray.getWords().length * 4;
+
+        // We assume that none of the VarInts will be larger than 3 bytes
+        size += 3; // Palette size
+        size += this.palette.size() * 3;
+        return size;
+    }
+
     private void onResize(BitArrayVersion version) {
-        BitArray newBitArray = version.createPalette(SIZE);
+        BitArray newBitArray = version.createArray(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
             newBitArray.set(i, this.bitArray.get(i));

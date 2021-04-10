@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,13 +31,17 @@ import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
 import com.github.steveice10.opennbt.tag.builtin.ListTag;
 import com.github.steveice10.opennbt.tag.builtin.Tag;
 import com.nukkitx.math.vector.Vector3f;
-import com.nukkitx.nbt.CompoundTagBuilder;
-import com.nukkitx.protocol.bedrock.data.EntityData;
+import com.nukkitx.nbt.NbtMap;
+import com.nukkitx.nbt.NbtMapBuilder;
+import com.nukkitx.nbt.NbtType;
+import com.nukkitx.protocol.bedrock.data.entity.EntityData;
 import com.nukkitx.protocol.bedrock.packet.SetEntityMotionPacket;
+import org.geysermc.connector.entity.player.PlayerEntity;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.utils.FireworkColor;
 import org.geysermc.connector.utils.MathUtils;
+import org.geysermc.floodgate.util.DeviceOS;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,32 +53,44 @@ public class FireworkEntity extends Entity {
         super(entityId, geyserId, entityType, position, motion, rotation);
     }
 
-
     @Override
     public void updateBedrockMetadata(EntityMetadata entityMetadata, GeyserSession session) {
         if (entityMetadata.getId() == 7) {
             ItemStack item = (ItemStack) entityMetadata.getValue();
+            if (item == null) {
+                return;
+            }
             CompoundTag tag = item.getNbt();
 
             if (tag == null) {
                 return;
             }
 
-            CompoundTag fireworks = tag.get("Fireworks");
-
-            CompoundTagBuilder fireworksBuilder = CompoundTagBuilder.builder();
-            if (fireworks.get("Flight") != null) {
-                fireworksBuilder.byteTag("Flight", MathUtils.convertByte(fireworks.get("Flight").getValue()));
+            // TODO: Remove once Mojang fixes bugs with fireworks crashing clients on these specific devices.
+            // https://bugs.mojang.com/browse/MCPE-89115
+            if (session.getClientData().getDeviceOS() == DeviceOS.XBOX_ONE || session.getClientData().getDeviceOS() == DeviceOS.ORBIS) {
+                return;
             }
 
-            List<com.nukkitx.nbt.tag.CompoundTag> explosions = new ArrayList<>();
+            CompoundTag fireworks = tag.get("Fireworks");
+            if (fireworks == null) {
+                // Thank you Mineplex very cool
+                return;
+            }
+
+            NbtMapBuilder fireworksBuilder = NbtMap.builder();
+            if (fireworks.get("Flight") != null) {
+                fireworksBuilder.putByte("Flight", MathUtils.convertByte(fireworks.get("Flight").getValue()));
+            }
+
+            List<NbtMap> explosions = new ArrayList<>();
             if (fireworks.get("Explosions") != null) {
                 for (Tag effect : ((ListTag) fireworks.get("Explosions")).getValue()) {
                     CompoundTag effectData = (CompoundTag) effect;
-                    CompoundTagBuilder effectBuilder = CompoundTagBuilder.builder();
+                    NbtMapBuilder effectBuilder = NbtMap.builder();
 
                     if (effectData.get("Type") != null) {
-                        effectBuilder.byteTag("FireworkType", MathUtils.convertByte(effectData.get("Type").getValue()));
+                        effectBuilder.putByte("FireworkType", MathUtils.convertByte(effectData.get("Type").getValue()));
                     }
 
                     if (effectData.get("Colors") != null) {
@@ -86,7 +102,7 @@ public class FireworkEntity extends Entity {
                             colors[i++] = FireworkColor.fromJavaID(color).getBedrockID();
                         }
 
-                        effectBuilder.byteArrayTag("FireworkColor", colors);
+                        effectBuilder.putByteArray("FireworkColor", colors);
                     }
 
                     if (effectData.get("FadeColors") != null) {
@@ -98,24 +114,26 @@ public class FireworkEntity extends Entity {
                             colors[i++] = FireworkColor.fromJavaID(color).getBedrockID();
                         }
 
-                        effectBuilder.byteArrayTag("FireworkFade", colors);
+                        effectBuilder.putByteArray("FireworkFade", colors);
                     }
 
                     if (effectData.get("Trail") != null) {
-                        effectBuilder.byteTag("FireworkTrail", MathUtils.convertByte(effectData.get("Trail").getValue()));
+                        effectBuilder.putByte("FireworkTrail", MathUtils.convertByte(effectData.get("Trail").getValue()));
                     }
 
                     if (effectData.get("Flicker") != null) {
-                        effectBuilder.byteTag("FireworkFlicker", MathUtils.convertByte(effectData.get("Flicker").getValue()));
+                        effectBuilder.putByte("FireworkFlicker", MathUtils.convertByte(effectData.get("Flicker").getValue()));
                     }
 
-                    explosions.add(effectBuilder.buildRootTag());
+                    explosions.add(effectBuilder.build());
                 }
             }
 
-            fireworksBuilder.tag(new com.nukkitx.nbt.tag.ListTag<>("Explosions", com.nukkitx.nbt.tag.CompoundTag.class, explosions));
+            fireworksBuilder.putList("Explosions", NbtType.COMPOUND, explosions);
 
-            metadata.put(EntityData.DISPLAY_ITEM, CompoundTagBuilder.builder().tag(fireworksBuilder.build("Fireworks")).buildRootTag());
+            NbtMapBuilder builder = NbtMap.builder();
+            builder.put("Fireworks", fireworksBuilder.build());
+            metadata.put(EntityData.DISPLAY_ITEM, builder.build());
         } else if (entityMetadata.getId() == 8 && !entityMetadata.getValue().equals(OptionalInt.empty()) && ((OptionalInt) entityMetadata.getValue()).getAsInt() == session.getPlayerEntity().getEntityId()) {
             //Checks if the firework has an entity ID (used when a player is gliding) and checks to make sure the player that is gliding is the one getting sent the packet or else every player near the gliding player will boost too.
             PlayerEntity entity = session.getPlayerEntity();

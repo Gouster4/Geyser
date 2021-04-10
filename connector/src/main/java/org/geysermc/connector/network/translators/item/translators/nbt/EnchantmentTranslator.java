@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,7 @@ package org.geysermc.connector.network.translators.item.translators.nbt;
 
 import com.github.steveice10.opennbt.tag.builtin.*;
 import org.geysermc.connector.GeyserConnector;
+import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.ItemRemapper;
 import org.geysermc.connector.network.translators.item.NbtItemStackTranslator;
 import org.geysermc.connector.network.translators.item.Enchantment;
@@ -40,7 +41,7 @@ import java.util.Map;
 public class EnchantmentTranslator extends NbtItemStackTranslator {
 
     @Override
-    public void translateToBedrock(CompoundTag itemTag, ItemEntry itemEntry) {
+    public void translateToBedrock(GeyserSession session, CompoundTag itemTag, ItemEntry itemEntry) {
         List<Tag> newTags = new ArrayList<>();
         if (itemTag.contains("Enchantments")) {
             ListTag enchantmentTag = itemTag.get("Enchantments");
@@ -114,7 +115,7 @@ public class EnchantmentTranslator extends NbtItemStackTranslator {
             itemTag.put(new ListTag("Enchantments", enchantments));
         }
         if (!storedEnchantments.isEmpty()) {
-            itemTag.put(new ListTag("StoredEnchantments", enchantments));
+            itemTag.put(new ListTag("StoredEnchantments", storedEnchantments));
         }
         itemTag.remove("ench");
     }
@@ -122,7 +123,7 @@ public class EnchantmentTranslator extends NbtItemStackTranslator {
 
     private CompoundTag remapEnchantment(CompoundTag tag) {
         Tag javaEnchLvl = tag.get("lvl");
-        if (!(javaEnchLvl instanceof ShortTag))
+        if (!(javaEnchLvl instanceof ShortTag || javaEnchLvl instanceof IntTag))
             return null;
 
         Tag javaEnchId = tag.get("id");
@@ -137,7 +138,7 @@ public class EnchantmentTranslator extends NbtItemStackTranslator {
 
         CompoundTag bedrockTag = new CompoundTag("");
         bedrockTag.put(new ShortTag("id", (short) enchantment.ordinal()));
-        bedrockTag.put(new ShortTag("lvl", ((ShortTag) javaEnchLvl).getValue()));
+        bedrockTag.put(new ShortTag("lvl", ((Number) javaEnchLvl.getValue()).shortValue()));
         return bedrockTag;
     }
 

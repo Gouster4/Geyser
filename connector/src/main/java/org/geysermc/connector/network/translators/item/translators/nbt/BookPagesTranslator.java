@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,10 +29,11 @@ import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
 import com.github.steveice10.opennbt.tag.builtin.ListTag;
 import com.github.steveice10.opennbt.tag.builtin.StringTag;
 import com.github.steveice10.opennbt.tag.builtin.Tag;
+import org.geysermc.connector.network.session.GeyserSession;
 import org.geysermc.connector.network.translators.ItemRemapper;
 import org.geysermc.connector.network.translators.item.NbtItemStackTranslator;
 import org.geysermc.connector.network.translators.item.ItemEntry;
-import org.geysermc.connector.utils.MessageUtils;
+import org.geysermc.connector.network.translators.chat.MessageTranslator;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +42,7 @@ import java.util.List;
 public class BookPagesTranslator extends NbtItemStackTranslator {
 
     @Override
-    public void translateToBedrock(CompoundTag itemTag, ItemEntry itemEntry) {
+    public void translateToBedrock(GeyserSession session, CompoundTag itemTag, ItemEntry itemEntry) {
         if (!itemTag.contains("pages")) {
             return;
         }
@@ -55,7 +56,7 @@ public class BookPagesTranslator extends NbtItemStackTranslator {
 
             CompoundTag pageTag = new CompoundTag("");
             pageTag.put(new StringTag("photoname", ""));
-            pageTag.put(new StringTag("text", MessageUtils.getBedrockMessageLenient(textTag.getValue())));
+            pageTag.put(new StringTag("text", MessageTranslator.convertMessageLenient(textTag.getValue())));
             pages.add(pageTag);
         }
 
@@ -77,9 +78,8 @@ public class BookPagesTranslator extends NbtItemStackTranslator {
             CompoundTag pageTag = (CompoundTag) tag;
 
             StringTag textTag = pageTag.get("text");
-            pages.add(new StringTag(MessageUtils.getJavaMessage(textTag.getValue())));
+            pages.add(new StringTag("", textTag.getValue()));
         }
-
         itemTag.remove("pages");
         itemTag.put(new ListTag("pages", pages));
     }

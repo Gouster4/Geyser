@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,16 +28,29 @@ package org.geysermc.connector.entity.living.merchant;
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.EntityMetadata;
 import com.github.steveice10.mc.protocol.data.game.entity.metadata.VillagerData;
 import com.nukkitx.math.vector.Vector3f;
-import com.nukkitx.protocol.bedrock.data.EntityData;
+import com.nukkitx.math.vector.Vector3i;
+import com.nukkitx.protocol.bedrock.data.entity.EntityData;
+import com.nukkitx.protocol.bedrock.data.entity.EntityFlag;
+import com.nukkitx.protocol.bedrock.packet.MoveEntityAbsolutePacket;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import org.geysermc.connector.entity.type.EntityType;
 import org.geysermc.connector.network.session.GeyserSession;
+import org.geysermc.connector.network.translators.world.block.BlockTranslator;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class VillagerEntity extends AbstractMerchantEntity {
 
+    /**
+     * A map of Java profession IDs to Bedrock IDs
+     */
     private static final Int2IntMap VILLAGER_VARIANTS = new Int2IntOpenHashMap();
-    private static final Int2IntMap VILLAGER_REGIONS = new Int2IntOpenHashMap();
+    /**
+     * A map of all Java region IDs (plains, savanna...) to Bedrock
+     */
+    public static final Int2IntMap VILLAGER_REGIONS = new Int2IntOpenHashMap();
 
     static {
         // Java villager profession IDs -> Bedrock
@@ -83,5 +96,61 @@ public class VillagerEntity extends AbstractMerchantEntity {
             metadata.put(EntityData.TRADE_TIER, villagerData.getLevel() - 1);
         }
         super.updateBedrockMetadata(entityMetadata, session);
+    }
+    
+    @Override
+    public void moveRelative(GeyserSession session, double relX, double relY, double relZ, Vector3f rotation, boolean isOnGround) {
+        if (!metadata.getFlags().getFlag(EntityFlag.SLEEPING)) {
+            // No need to worry about extra processing to compensate for sleeping
+            super.moveRelative(session, relX, relY, relZ, rotation, isOnGround);
+            return;
+        }
+
+        int z = 0;
+        int bedId = 0;
+        float bedPositionSubtractorW = 0;
+        float bedPositionSubtractorN = 0;
+        Vector3i bedPosition = metadata.getPos(EntityData.BED_POSITION, null);
+        if (session.getConnector().getConfig().isCacheChunks() && bedPosition != null) {
+            bedId = session.getConnector().getWorldManager().getBlockAt(session, bedPosition);
+        }
+        String bedRotationZ = BlockTranslator.getJavaIdBlockMap().inverse().get(bedId);
+        setRotation(rotation);
+        setOnGround(isOnGround);
+        this.position = Vector3f.from(position.getX() + relX, position.getY() + relY, position.getZ() + relZ);
+
+        MoveEntityAbsolutePacket moveEntityPacket = new MoveEntityAbsolutePacket();
+        moveEntityPacket.setRuntimeEntityId(geyserId);
+        //Sets Villager position and rotation when sleeping
+        Pattern r = Pattern.compile("facing=([a-z]+)");
+        Matcher m = r.matcher(bedRotationZ);
+        if (m.find()) {
+            switch (m.group(0)) {
+                case "facing=south":
+                    //bed is facing south
+                    z = 180;
+                    bedPositionSubtractorW = -.5f;
+                    break;
+                case "facing=east":
+                    //bed is facing east
+                    z = 90;
+                    bedPositionSubtractorW = -.5f;
+                    break;
+                case "facing=west":
+                    //bed is facing west
+                    z = 270;
+                    bedPositionSubtractorW = .5f;
+                    break;
+                case "facing=north":
+                    //rotation does not change because north is 0
+                    bedPositionSubtractorN = .5f;
+                    break;
+            }
+        }
+        moveEntityPacket.setRotation(Vector3f.from(0, 0, z));
+        moveEntityPacket.setPosition(Vector3f.from(position.getX() + bedPositionSubtractorW, position.getY(), position.getZ() + bedPositionSubtractorN));
+        moveEntityPacket.setOnGround(isOnGround);
+        moveEntityPacket.setTeleported(false);
+        session.sendUpstreamPacket(moveEntityPacket);
     }
 }

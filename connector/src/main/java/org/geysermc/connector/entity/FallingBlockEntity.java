@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2021 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,16 +25,32 @@
 
 package org.geysermc.connector.entity;
 
+import com.github.steveice10.mc.protocol.data.game.entity.metadata.EntityMetadata;
 import com.nukkitx.math.vector.Vector3f;
-import com.nukkitx.protocol.bedrock.data.EntityData;
+import com.nukkitx.protocol.bedrock.data.entity.EntityData;
+import com.nukkitx.protocol.bedrock.data.entity.EntityFlag;
 import org.geysermc.connector.entity.type.EntityType;
-import org.geysermc.connector.network.translators.world.block.BlockTranslator;
+import org.geysermc.connector.network.session.GeyserSession;
 
 public class FallingBlockEntity extends Entity {
+    private final int javaId;
 
     public FallingBlockEntity(long entityId, long geyserId, EntityType entityType, Vector3f position, Vector3f motion, Vector3f rotation, int javaId) {
         super(entityId, geyserId, entityType, position, motion, rotation);
+        this.javaId = javaId;
+    }
 
-        this.metadata.put(EntityData.VARIANT, BlockTranslator.getBedrockBlockId(javaId));
+    @Override
+    public void spawnEntity(GeyserSession session) {
+        this.metadata.put(EntityData.VARIANT, session.getBlockTranslator().getBedrockBlockId(javaId));
+        super.spawnEntity(session);
+    }
+
+    @Override
+    public void updateBedrockMetadata(EntityMetadata entityMetadata, GeyserSession session) {
+        // Set the NO_AI flag based on the no gravity flag to prevent movement
+        if (entityMetadata.getId() == 5) {
+            this.metadata.getFlags().setFlag(EntityFlag.NO_AI, (boolean) entityMetadata.getValue());
+        }
     }
 }
